@@ -1,7 +1,4 @@
 // Core domain entities for the AI English Learning Platform.
-// These are the source-of-truth TypeScript models used across the app.
-// Persistence (DB / Lovable Cloud) will be added in a later phase.
-
 export type ISODate = string;
 
 export type EnglishLevel = "beginner" | "elementary" | "intermediate" | "upper" | "advanced";
@@ -38,8 +35,8 @@ export type TranslationMode = "instant" | "on_tap" | "side_by_side" | "off";
 
 export interface UserLanguageSettings {
   user_id: string;
-  native_language: string; // display name
-  native_language_code: string; // ISO 639-1
+  native_language: string;
+  native_language_code: string;
   translation_enabled: boolean;
   preferred_translation_mode: TranslationMode;
 }
@@ -61,8 +58,8 @@ export interface LearningModule {
   id: ModuleId;
   name: string;
   description: string;
-  icon: string; // lucide icon name
-  price: number; // monthly USD
+  icon: string;
+  price: number;
   status: ModuleStatus;
   category: "practice" | "content" | "exam" | "career";
   created_at: ISODate;
