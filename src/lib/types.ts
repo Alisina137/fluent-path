@@ -1,17 +1,21 @@
 // Core domain entities for the AI English Learning Platform.
 export type ISODate = string;
 
-export type EnglishLevel = "beginner" | "elementary" | "intermediate" | "upper" | "advanced";
+// CEFR levels.
+export type EnglishLevel = "a1" | "a2" | "b1" | "b2" | "c1" | "c2";
 
 export type LearningGoal =
-  | "travel"
-  | "career"
-  | "academic"
+  | "speaking"
+  | "writing"
+  | "vocabulary"
+  | "listening"
+  | "reading"
   | "ielts"
   | "interview"
   | "business"
-  | "daily"
-  | "culture";
+  | "travel";
+
+export type LearningStyle = "visual" | "listening" | "reading" | "speaking" | "writing";
 
 export type DailyLearningTime = 5 | 10 | 15 | 30 | 60;
 
@@ -28,7 +32,10 @@ export interface UserProfile {
   english_level: EnglishLevel | null;
   learning_goals: LearningGoal[];
   daily_learning_time: DailyLearningTime;
+  learning_preferences: LearningStyle[];
+  onboarding_completed: boolean;
   created_at: ISODate;
+  updated_at: ISODate;
 }
 
 export type TranslationMode = "instant" | "on_tap" | "side_by_side" | "off";

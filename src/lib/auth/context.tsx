@@ -31,6 +31,7 @@ interface AuthContextValue {
   signUp: (input: { name: string; email: string; password: string }) => Promise<void>;
   signIn: (input: { email: string; password: string }) => Promise<void>;
   signOut: () => void;
+  updateUser: (patch: Partial<Pick<User, "name" | "avatar">>) => void;
   updateProfile: (patch: Partial<UserProfile>) => void;
   updateLanguage: (patch: Partial<UserLanguageSettings>) => void;
   completeOnboarding: () => void;
@@ -79,7 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         english_level: null,
         learning_goals: [],
         daily_learning_time: 15,
+        learning_preferences: [],
+        onboarding_completed: false,
         created_at: now,
+        updated_at: now,
       },
       language: null,
       modules: [],
@@ -105,30 +109,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       profile: {
         user_id: user.id,
-        english_level: "intermediate",
-        learning_goals: ["career"],
+        english_level: null,
+        learning_goals: [],
         daily_learning_time: 15,
+        learning_preferences: [],
+        onboarding_completed: false,
         created_at: now,
+        updated_at: now,
       },
-      language: {
-        user_id: user.id,
-        native_language: "English",
-        native_language_code: "en",
-        translation_enabled: false,
-        preferred_translation_mode: "on_tap",
-      },
+      language: null,
       modules: [],
       subscription: null,
-      onboarded: true,
+      onboarded: false,
     });
   }, [update]);
 
   const signOut = useCallback(() => update(null), [update]);
 
+  const updateUser = useCallback<AuthContextValue["updateUser"]>((patch) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, user: { ...prev.user, ...patch } };
+      persist(next);
+      return next;
+    });
+  }, []);
+
   const updateProfile = useCallback<AuthContextValue["updateProfile"]>((patch) => {
     setSession((prev) => {
       if (!prev || !prev.profile) return prev;
-      const next = { ...prev, profile: { ...prev.profile, ...patch } };
+      const next = {
+        ...prev,
+        profile: { ...prev.profile, ...patch, updated_at: new Date().toISOString() },
+      };
       persist(next);
       return next;
     });
@@ -153,7 +166,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const completeOnboarding = useCallback(() => {
     setSession((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, onboarded: true };
+      const now = new Date().toISOString();
+      const profile = prev.profile
+        ? { ...prev.profile, onboarding_completed: true, updated_at: now }
+        : prev.profile;
+      const next = { ...prev, profile, onboarded: true };
       persist(next);
       return next;
     });
@@ -167,11 +184,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       signOut,
+      updateUser,
       updateProfile,
       updateLanguage,
       completeOnboarding,
     }),
-    [session, hydrated, signUp, signIn, signOut, updateProfile, updateLanguage, completeOnboarding],
+    [session, hydrated, signUp, signIn, signOut, updateUser, updateProfile, updateLanguage, completeOnboarding],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
