@@ -14,9 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppProgressRouteImport } from './routes/_app.progress'
-import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppMyLearningRouteImport } from './routes/_app.my-learning'
 import { Route as AppModulesRouteImport } from './routes/_app.modules'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -45,19 +43,9 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppProgressRoute = AppProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppProfileRoute = AppProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMyLearningRoute = AppMyLearningRouteImport.update({
@@ -84,9 +72,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
-  '/profile': typeof AppProfileRoute
   '/progress': typeof AppProgressRoute
-  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,9 +82,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
-  '/profile': typeof AppProfileRoute
   '/progress': typeof AppProgressRoute
-  '/settings': typeof AppSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,9 +94,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/modules': typeof AppModulesRoute
   '/_app/my-learning': typeof AppMyLearningRoute
-  '/_app/profile': typeof AppProfileRoute
   '/_app/progress': typeof AppProgressRoute
-  '/_app/settings': typeof AppSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -124,9 +106,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/modules'
     | '/my-learning'
-    | '/profile'
     | '/progress'
-    | '/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -136,9 +116,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/modules'
     | '/my-learning'
-    | '/profile'
     | '/progress'
-    | '/settings'
   id:
     | '__root__'
     | '/'
@@ -149,9 +127,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/modules'
     | '/_app/my-learning'
-    | '/_app/profile'
     | '/_app/progress'
-    | '/_app/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -199,25 +175,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/progress': {
       id: '/_app/progress'
       path: '/progress'
       fullPath: '/progress'
       preLoaderRoute: typeof AppProgressRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/profile': {
-      id: '/_app/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof AppProfileRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/my-learning': {
@@ -248,18 +210,14 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppModulesRoute: typeof AppModulesRoute
   AppMyLearningRoute: typeof AppMyLearningRoute
-  AppProfileRoute: typeof AppProfileRoute
   AppProgressRoute: typeof AppProgressRoute
-  AppSettingsRoute: typeof AppSettingsRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppModulesRoute: AppModulesRoute,
   AppMyLearningRoute: AppMyLearningRoute,
-  AppProfileRoute: AppProfileRoute,
   AppProgressRoute: AppProgressRoute,
-  AppSettingsRoute: AppSettingsRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
