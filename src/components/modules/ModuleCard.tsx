@@ -3,6 +3,7 @@ import type { LearningModule } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DIFFICULTY_LABELS } from "@/lib/modules/registry";
 
 export function ModuleCard({
   module,
@@ -31,7 +32,12 @@ export function ModuleCard({
       </div>
       <div className="flex flex-col gap-1">
         <h3 className="text-base font-semibold tracking-tight">{module.name}</h3>
-        <p className="text-sm text-muted-foreground">{module.description}</p>
+        <p className="text-sm text-muted-foreground">{module.tagline}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary" className="text-[10px]">
+          {DIFFICULTY_LABELS[module.difficulty]}
+        </Badge>
       </div>
       <div className="mt-auto flex items-center justify-between pt-2">
         <span className="text-sm">
@@ -41,10 +47,9 @@ export function ModuleCard({
         <Button
           size="sm"
           variant={active ? "outline" : "default"}
-          disabled={module.status === "coming_soon"}
           onClick={() => onSelect?.(module.id)}
         >
-          {active ? "Open" : module.status === "coming_soon" ? "Notify me" : "Subscribe"}
+          {active ? "Open" : "View details"}
         </Button>
       </div>
     </Card>
