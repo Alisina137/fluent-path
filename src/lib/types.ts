@@ -49,6 +49,7 @@ export interface UserLanguageSettings {
 }
 
 export type ModuleStatus = "available" | "coming_soon" | "beta";
+export type ModuleDifficulty = "beginner" | "intermediate" | "advanced" | "all_levels";
 export type ModuleId =
   | "speaking"
   | "writing"
@@ -68,7 +69,22 @@ export interface LearningModule {
   icon: string;
   price: number;
   status: ModuleStatus;
-  category: "practice" | "content" | "exam" | "career";
+  category:
+    | "speaking"
+    | "writing"
+    | "vocabulary"
+    | "reading"
+    | "listening"
+    | "grammar"
+    | "stories"
+    | "exams"
+    | "career";
+  difficulty: ModuleDifficulty;
+  tagline: string;
+  benefits: string[];
+  features: string[];
+  outcomes: string[];
+  related_goals: import("./types").LearningGoal[];
   created_at: ISODate;
 }
 
