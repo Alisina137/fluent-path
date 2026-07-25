@@ -35,6 +35,10 @@ interface AuthContextValue {
   updateProfile: (patch: Partial<UserProfile>) => void;
   updateLanguage: (patch: Partial<UserLanguageSettings>) => void;
   completeOnboarding: () => void;
+  subscribeModule: (moduleId: UserModule["module_id"]) => void;
+  cancelModule: (moduleId: UserModule["module_id"]) => void;
+  renewModule: (moduleId: UserModule["module_id"]) => void;
+  markModuleOpened: (moduleId: UserModule["module_id"]) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -176,6 +180,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const upsertModule = useCallback(
+    (moduleId: UserModule["module_id"], patch: (existing?: UserModule) => UserModule) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const existing = prev.modules.find((m) => m.module_id === moduleId);
+        const nextModule = patch(existing);
+        const modules = existing
+          ? prev.modules.map((m) => (m.module_id === moduleId ? nextModule : m))
+          : [...prev.modules, nextModule];
+        const next = { ...prev, modules };
+        persist(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const subscribeModule = useCallback<AuthContextValue["subscribeModule"]>(
+    (moduleId) => {
+      const now = new Date();
+      const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      upsertModule(moduleId, (existing) => ({
+        user_id: existing?.user_id ?? "",
+        module_id: moduleId,
+        subscription_status: "active",
+        activation_date: now.toISOString(),
+        expiration_date: in30.toISOString(),
+        auto_renew: true,
+        last_accessed: existing?.last_accessed ?? null,
+        progress_percentage: existing?.progress_percentage ?? 0,
+      }));
+    },
+    [upsertModule],
+  );
+
+  const cancelModule = useCallback<AuthContextValue["cancelModule"]>(
+    (moduleId) => {
+      upsertModule(moduleId, (existing) => ({
+        user_id: existing?.user_id ?? "",
+        module_id: moduleId,
+        subscription_status: "canceled",
+        activation_date: existing?.activation_date ?? null,
+        expiration_date: existing?.expiration_date ?? null,
+        auto_renew: false,
+        last_accessed: existing?.last_accessed ?? null,
+        progress_percentage: existing?.progress_percentage ?? 0,
+      }));
+    },
+    [upsertModule],
+  );
+
+  const renewModule = useCallback<AuthContextValue["renewModule"]>(
+    (moduleId) => subscribeModule(moduleId),
+    [subscribeModule],
+  );
+
+  const markModuleOpened = useCallback<AuthContextValue["markModuleOpened"]>(
+    (moduleId) => {
+      upsertModule(moduleId, (existing) => ({
+        user_id: existing?.user_id ?? "",
+        module_id: moduleId,
+        subscription_status: existing?.subscription_status ?? "active",
+        activation_date: existing?.activation_date ?? new Date().toISOString(),
+        expiration_date: existing?.expiration_date ?? null,
+        auto_renew: existing?.auto_renew ?? true,
+        last_accessed: new Date().toISOString(),
+        progress_percentage: existing?.progress_percentage ?? 0,
+      }));
+    },
+    [upsertModule],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -188,8 +264,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateProfile,
       updateLanguage,
       completeOnboarding,
+      subscribeModule,
+      cancelModule,
+      renewModule,
+      markModuleOpened,
     }),
-    [session, hydrated, signUp, signIn, signOut, updateUser, updateProfile, updateLanguage, completeOnboarding],
+    [
+      session,
+      hydrated,
+      signUp,
+      signIn,
+      signOut,
+      updateUser,
+      updateProfile,
+      updateLanguage,
+      completeOnboarding,
+      subscribeModule,
+      cancelModule,
+      renewModule,
+      markModuleOpened,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
