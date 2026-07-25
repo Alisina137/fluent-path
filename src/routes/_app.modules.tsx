@@ -100,8 +100,22 @@ function ModulesPage() {
 
       <ModulePreview
         module={activeModule}
+        userModule={activeModule ? userModules.find((u) => u.module_id === activeModule.id) : undefined}
         open={!!activeModule}
         onOpenChange={(o) => !o && setPreviewId(null)}
+        onSubscribe={(id) => {
+          subscribeModule(id);
+          toast.success("Subscribed. Find it under My Learning.");
+        }}
+        onOpen={(id) => {
+          markModuleOpened(id);
+          void navigate({ to: "/my-learning" });
+        }}
+        onRenew={(id) => {
+          renewModule(id);
+          toast.success("Subscription renewed.");
+        }}
+        onNotify={() => toast.success("We'll let you know when it launches.")}
       />
     </div>
   );
