@@ -6,6 +6,7 @@ import {
   LineChart,
   Settings,
   User as UserIcon,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +31,7 @@ const items = [
 
 const accountItems = [
   { title: "Profile", url: "/profile", icon: UserIcon },
+  { title: "Subscription", url: "/subscription", icon: CreditCard },
   { title: "Settings", url: "/settings", icon: Settings },
 ] as const;
 
