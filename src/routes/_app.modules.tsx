@@ -10,6 +10,8 @@ import {
 } from "@/components/modules/FilterPanel";
 import { ModulePreview } from "@/components/modules/ModulePreview";
 import { useAuth } from "@/lib/auth/context";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/modules")({
   head: () => ({
@@ -24,15 +26,14 @@ export const Route = createFileRoute("/_app/modules")({
 });
 
 function ModulesPage() {
-  const { session } = useAuth();
+  const { session, subscribeModule, renewModule, markModuleOpened } = useAuth();
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [difficulty, setDifficulty] = useState<DifficultyFilter>("all");
   const [previewId, setPreviewId] = useState<string | null>(null);
 
-  const ownedIds = (session?.modules ?? [])
-    .filter((m) => m.subscription_status === "active" || m.subscription_status === "trialing")
-    .map((m) => m.module_id);
+  const userModules = session?.modules ?? [];
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -80,14 +81,41 @@ function ModulesPage() {
 
       <MarketplaceGrid
         modules={filtered}
-        activeIds={ownedIds}
+        userModules={userModules}
         onOpen={(id) => setPreviewId(id)}
+        onSubscribe={(id) => {
+          subscribeModule(id);
+          toast.success("Subscribed. Find it under My Learning.");
+        }}
+        onOpenModule={(id) => {
+          markModuleOpened(id);
+          void navigate({ to: "/my-learning" });
+        }}
+        onRenew={(id) => {
+          renewModule(id);
+          toast.success("Subscription renewed.");
+        }}
+        onNotify={() => toast.success("We'll let you know when it launches.")}
       />
 
       <ModulePreview
         module={activeModule}
+        userModule={activeModule ? userModules.find((u) => u.module_id === activeModule.id) : undefined}
         open={!!activeModule}
         onOpenChange={(o) => !o && setPreviewId(null)}
+        onSubscribe={(id) => {
+          subscribeModule(id);
+          toast.success("Subscribed. Find it under My Learning.");
+        }}
+        onOpen={(id) => {
+          markModuleOpened(id);
+          void navigate({ to: "/my-learning" });
+        }}
+        onRenew={(id) => {
+          renewModule(id);
+          toast.success("Subscription renewed.");
+        }}
+        onNotify={() => toast.success("We'll let you know when it launches.")}
       />
     </div>
   );

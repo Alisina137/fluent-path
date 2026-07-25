@@ -75,7 +75,13 @@ function Landing() {
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (<ModuleCard key={m.id} module={m} />))}
+          {MODULES.map((m) => (
+            <ModuleCard
+              key={m.id}
+              module={m}
+              accessState={m.release_status === "coming_soon" ? "coming_soon" : "available"}
+            />
+          ))}
         </div>
       </section>
 

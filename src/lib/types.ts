@@ -49,6 +49,7 @@ export interface UserLanguageSettings {
 }
 
 export type ModuleStatus = "available" | "coming_soon" | "beta";
+export type ModuleReleaseStatus = "available" | "coming_soon" | "beta" | "retired";
 export type ModuleDifficulty = "beginner" | "intermediate" | "advanced" | "all_levels";
 export type ModuleId =
   | "speaking"
@@ -64,11 +65,19 @@ export type ModuleId =
 
 export interface LearningModule {
   id: ModuleId;
+  slug: string;
   name: string;
+  short_description: string;
+  full_description: string;
   description: string;
   icon: string;
   price: number;
+  monthly_price: number;
   status: ModuleStatus;
+  release_status: ModuleReleaseStatus;
+  featured: boolean;
+  display_order: number;
+  estimated_learning_time: string;
   category:
     | "speaking"
     | "writing"
@@ -84,17 +93,35 @@ export interface LearningModule {
   benefits: string[];
   features: string[];
   outcomes: string[];
+  audience: string[];
   related_goals: import("./types").LearningGoal[];
   created_at: ISODate;
+  updated_at: ISODate;
 }
 
-export type SubscriptionStatus = "active" | "trialing" | "canceled" | "inactive";
+export type SubscriptionStatus =
+  | "active"
+  | "trialing"
+  | "canceled"
+  | "inactive"
+  | "expired";
+
+export type ModuleAccessState =
+  | "available"
+  | "subscribed"
+  | "expired"
+  | "coming_soon"
+  | "locked";
 
 export interface UserModule {
   user_id: string;
   module_id: ModuleId;
   subscription_status: SubscriptionStatus;
   activation_date: ISODate | null;
+  expiration_date: ISODate | null;
+  auto_renew: boolean;
+  last_accessed: ISODate | null;
+  progress_percentage: number;
 }
 
 export interface Subscription {
@@ -105,4 +132,21 @@ export interface Subscription {
   start_date: ISODate | null;
   renewal_date: ISODate | null;
   module_ids: ModuleId[];
+}
+
+export type NotificationType =
+  | "subscription_expiring"
+  | "new_module_available"
+  | "module_updated"
+  | "daily_reminder";
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  created_at: ISODate;
+  read: boolean;
+  module_id?: ModuleId;
 }
