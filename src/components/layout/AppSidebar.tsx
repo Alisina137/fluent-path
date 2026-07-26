@@ -7,6 +7,7 @@ import {
   Settings,
   User as UserIcon,
   CreditCard,
+  ClipboardCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -26,6 +27,7 @@ const items = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "My Learning", url: "/my-learning", icon: BookOpen },
   { title: "Modules", url: "/modules", icon: Grid3x3 },
+  { title: "Assessment", url: "/assessment", icon: ClipboardCheck },
   { title: "Progress", url: "/progress", icon: LineChart },
 ] as const;
 
