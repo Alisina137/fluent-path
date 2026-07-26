@@ -21,6 +21,7 @@ import { Route as AppProfileRouteImport } from './routes/_app.profile'
 import { Route as AppMyLearningRouteImport } from './routes/_app.my-learning'
 import { Route as AppModulesRouteImport } from './routes/_app.modules'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppAssessmentRouteImport } from './routes/_app.assessment'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -81,12 +82,18 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAssessmentRoute = AppAssessmentRouteImport.update({
+  id: '/assessment',
+  path: '/assessment',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/assessment': typeof AppAssessmentRoute
   '/dashboard': typeof AppDashboardRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/assessment': typeof AppAssessmentRoute
   '/dashboard': typeof AppDashboardRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/_app/assessment': typeof AppAssessmentRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/modules': typeof AppModulesRoute
   '/_app/my-learning': typeof AppMyLearningRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/assessment'
     | '/dashboard'
     | '/modules'
     | '/my-learning'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/assessment'
     | '/dashboard'
     | '/modules'
     | '/my-learning'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/_app/assessment'
     | '/_app/dashboard'
     | '/_app/modules'
     | '/_app/my-learning'
@@ -260,10 +272,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/assessment': {
+      id: '/_app/assessment'
+      path: '/assessment'
+      fullPath: '/assessment'
+      preLoaderRoute: typeof AppAssessmentRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppAssessmentRoute: typeof AppAssessmentRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppModulesRoute: typeof AppModulesRoute
   AppMyLearningRoute: typeof AppMyLearningRoute
@@ -274,6 +294,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAssessmentRoute: AppAssessmentRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppModulesRoute: AppModulesRoute,
   AppMyLearningRoute: AppMyLearningRoute,
