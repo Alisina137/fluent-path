@@ -8,6 +8,8 @@ import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { ProgressCard } from "@/components/dashboard/ProgressCard";
 import { RecommendationCard } from "@/components/dashboard/RecommendationCard";
 import { ModulePreview } from "@/components/modules/ModulePreview";
+import { AssessmentCard } from "@/components/assessment/AssessmentCard";
+import { latestResult } from "@/lib/assessment/storage";
 import { MODULES, getModule } from "@/lib/modules/registry";
 import { recommendModules } from "@/lib/modules/recommend";
 import { useAuth } from "@/lib/auth/context";
@@ -28,6 +30,7 @@ export const Route = createFileRoute("/_app/dashboard")({
 function Dashboard() {
   const { session } = useAuth();
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const assessmentResult = typeof window !== "undefined" ? latestResult() : null;
 
   const goals = session?.profile?.learning_goals ?? [];
   const level = session?.profile?.english_level ?? null;
@@ -45,6 +48,8 @@ function Dashboard() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
       <WelcomeHero />
+
+      <AssessmentCard result={assessmentResult} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <TodayPlan />
