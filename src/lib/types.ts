@@ -150,3 +150,140 @@ export interface AppNotification {
   read: boolean;
   module_id?: ModuleId;
 }
+
+// ============ Assessment ============
+export type SkillId =
+  | "vocabulary"
+  | "grammar"
+  | "reading"
+  | "listening"
+  | "speaking"
+  | "writing";
+
+export type QuestionDifficulty = "easy" | "medium" | "hard";
+
+export type QuestionType =
+  | "multiple_choice"
+  | "fill_blank"
+  | "match"
+  | "synonym"
+  | "true_false"
+  | "sentence_correction";
+
+interface BaseQuestion {
+  id: string;
+  skill: SkillId;
+  difficulty: QuestionDifficulty;
+  prompt: string;
+  explanation?: string;
+}
+
+export interface MultipleChoiceQuestion extends BaseQuestion {
+  type: "multiple_choice";
+  options: string[];
+  answer_index: number;
+}
+
+export interface FillBlankQuestion extends BaseQuestion {
+  type: "fill_blank";
+  answer: string;
+  accepted?: string[];
+}
+
+export interface MatchQuestion extends BaseQuestion {
+  type: "match";
+  pairs: { left: string; right: string }[];
+}
+
+export interface SynonymQuestion extends BaseQuestion {
+  type: "synonym";
+  word: string;
+  options: string[];
+  answer_index: number;
+}
+
+export interface TrueFalseQuestion extends BaseQuestion {
+  type: "true_false";
+  passage_id?: string;
+  answer: boolean;
+}
+
+export interface SentenceCorrectionQuestion extends BaseQuestion {
+  type: "sentence_correction";
+  options: string[];
+  answer_index: number;
+}
+
+export type AssessmentQuestion =
+  | MultipleChoiceQuestion
+  | FillBlankQuestion
+  | MatchQuestion
+  | SynonymQuestion
+  | TrueFalseQuestion
+  | SentenceCorrectionQuestion;
+
+export interface ReadingPassage {
+  id: string;
+  title: string;
+  difficulty: QuestionDifficulty;
+  body: string;
+  highlights: string[];
+}
+
+export interface ListeningClip {
+  id: string;
+  title: string;
+  difficulty: QuestionDifficulty;
+  transcript: string;
+  duration_seconds: number;
+  audio_url?: string;
+}
+
+export interface AssessmentSectionMeta {
+  id: SkillId;
+  name: string;
+  description: string;
+  icon: string;
+  status: "available" | "coming_soon";
+  estimated_minutes: number;
+}
+
+export interface AssessmentAnswer {
+  question_id: string;
+  skill: SkillId;
+  difficulty: QuestionDifficulty;
+  correct: boolean;
+  value: string | number | boolean | null;
+}
+
+export interface SkillScore {
+  skill: SkillId;
+  correct: number;
+  total: number;
+  weighted_correct: number;
+  weighted_total: number;
+  percentage: number;
+}
+
+export interface AssessmentAttempt {
+  id: string;
+  user_id: string;
+  started_at: ISODate;
+  completed_at: ISODate | null;
+  duration_ms: number;
+  answers: AssessmentAnswer[];
+  section_ids: SkillId[];
+}
+
+export interface AssessmentResult {
+  attempt_id: string;
+  completed_at: ISODate;
+  scores: SkillScore[];
+  overall_percentage: number;
+  estimated_level: EnglishLevel;
+  confidence: number;
+  strengths: SkillId[];
+  weaknesses: SkillId[];
+  recommended_module_ids: ModuleId[];
+  duration_ms: number;
+}
