@@ -222,7 +222,7 @@ function AssessmentPage() {
           <Card className="flex flex-col gap-3 p-5">
             <h3 className="text-sm font-semibold">Recommended modules</h3>
             <ul className="grid gap-2 sm:grid-cols-2">
-              {result.recommended_module_ids.map((id) => {
+              {result.recommended_module_ids.map((id: import("@/lib/types").ModuleId) => {
                 const m = getModule(id);
                 if (!m) return null;
                 return (
