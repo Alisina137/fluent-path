@@ -57,10 +57,7 @@ export function AssessmentCard({
       </p>
       <div className="mt-1 flex flex-wrap gap-2">
         <Button asChild variant="outline">
-          <Link to="/assessment/results">View results</Link>
-        </Button>
-        <Button asChild variant="ghost">
-          <Link to="/assessment">Retake</Link>
+          <Link to="/assessment">Retake assessment</Link>
         </Button>
       </div>
     </Card>
