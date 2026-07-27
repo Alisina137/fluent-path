@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +93,24 @@ function OnboardingWizard() {
     });
     completeOnboarding();
     navigate({ to: "/dashboard" });
+  }
+
+  function finishAndAssess() {
+    const lang = NATIVE_LANGUAGES.find((l) => l.code === langCode) ?? NATIVE_LANGUAGES[0];
+    updateLanguage({
+      native_language: lang.name,
+      native_language_code: lang.code,
+      translation_enabled: lang.code !== "en",
+      preferred_translation_mode: "on_tap",
+    });
+    updateProfile({
+      english_level: level,
+      learning_goals: goals,
+      daily_learning_time: time,
+      learning_preferences: styles,
+    });
+    completeOnboarding();
+    navigate({ to: "/assessment" });
   }
 
   const canContinue =
@@ -196,10 +214,16 @@ function OnboardingWizard() {
                   <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               ) : (
-                <Button onClick={finish}>
-                  Start learning
-                  <Check className="ml-1.5 h-4 w-4" />
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" onClick={finishAndAssess}>
+                    <ClipboardCheck className="mr-1.5 h-4 w-4" />
+                    Take placement test
+                  </Button>
+                  <Button onClick={finish}>
+                    Start learning
+                    <Check className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </div>
               )}
             </div>
           </div>
