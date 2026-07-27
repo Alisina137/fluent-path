@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth/context";
+import { AssessmentCard } from "@/components/assessment/AssessmentCard";
+import { latestResult } from "@/lib/assessment/storage";
 import {
   DAILY_TIMES,
   goalLabel,
@@ -29,6 +31,7 @@ function ProfilePage() {
   const { user, profile, language } = session;
   const initials = user.name.slice(0, 2).toUpperCase();
   const timeLabel = DAILY_TIMES.find((t) => t.value === profile?.daily_learning_time)?.label ?? "—";
+  const assessment = latestResult();
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -46,6 +49,8 @@ function ProfilePage() {
           <p className="text-sm text-muted-foreground">{user.email}</p>
         </div>
       </Card>
+
+      <AssessmentCard result={assessment} variant="compact" />
 
       <Card className="p-6">
         <h3 className="text-sm font-semibold">Learning profile</h3>
