@@ -15,6 +15,20 @@
       "when": 1789293389310,
       "tag": "0001_groovy_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789298173931,
+      "tag": "0002_bizarre_lizard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789301127905,
+      "tag": "0003_adorable_mentor",
+      "breakpoints": true
     }
   ]
 }
