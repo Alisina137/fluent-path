@@ -36,7 +36,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
@@ -80,10 +80,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Lumen English — AI-powered English learning" },
-      { name: "description", content: "Modular AI English learning: speaking, writing, vocabulary, IELTS and more — in your native language." },
+      {
+        name: "description",
+        content:
+          "Modular AI English learning: speaking, writing, vocabulary, IELTS and more — in your native language.",
+      },
       { name: "author", content: "Lumen English" },
       { property: "og:title", content: "Lumen English — AI-powered English learning" },
-      { property: "og:description", content: "Pick the modules you need. Learn English with an AI coach that speaks your language." },
+      {
+        property: "og:description",
+        content:
+          "Pick the modules you need. Learn English with an AI coach that speaks your language.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },
