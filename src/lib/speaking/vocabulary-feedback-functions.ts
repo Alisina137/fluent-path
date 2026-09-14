@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-
+import { logServerError } from "@/lib/observability/server-logger";
 import { z } from "zod";
 
 const vocabularyEvaluationInputSchema = z.object({
@@ -203,7 +203,16 @@ export const evaluateSpeakingVocabularyServerFn = createServerFn({
         };
       }
 
-      const result = await vocabularyModule.evaluateSpeakingVocabulary(message.content);
+      const { evaluateSpeakingFeedbackOnce } =
+        await import("@/server/speaking/feedback/evaluate-once");
+
+      const result = await evaluateSpeakingFeedbackOnce({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "vocabulary",
+        evaluate: () => vocabularyModule.evaluateSpeakingVocabulary(message.content),
+      });
 
       const stored = await persistenceModule.persistSpeakingFeedback({
         userId: data.userId,
@@ -237,8 +246,11 @@ export const evaluateSpeakingVocabularyServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking Vocabulary Feedback] Evaluation failed", error);
-
+      logServerError({
+        subsystem: "speaking_vocabulary_feedback",
+        operation: "evaluate_vocabulary",
+        error,
+      });
       return {
         ok: false,
 

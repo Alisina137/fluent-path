@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { logServerError } from "@/lib/observability/server-logger";
 
 const speakingSpeechInputSchema = z.object({
   userId: z.string().uuid(),
@@ -210,7 +211,11 @@ export const generateSpeakingMessageSpeechServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking TTS] Speech generation failed", error);
+      logServerError({
+        subsystem: "speaking_tts",
+        operation: "generate_speech",
+        error,
+      });
 
       return {
         ok: false,

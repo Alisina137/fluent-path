@@ -162,20 +162,27 @@ function SkillCard({
         </div>
       </div>
 
-      <Progress value={score ?? 0} aria-label={`${label} score`} />
+      {score !== null ? (
+        <Progress value={score} aria-label={`${label} score ${Math.round(score)} out of 100`} />
+      ) : (
+        <p className="text-xs text-muted-foreground">No score available yet.</p>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
         <span className="text-muted-foreground">
           {evaluationCount} {evaluationCount === 1 ? "evaluation" : "evaluations"}
         </span>
 
-        <span className="flex items-center gap-1 font-medium">
+        <span
+          className="flex items-center gap-1 text-muted-foreground"
+          aria-label={`${label} progress status: ${getTrendLabel(direction)}`}
+        >
           <TrendIcon direction={direction} />
 
-          {getTrendLabel(direction)}
+          <span>{getTrendLabel(direction)}</span>
 
           {change !== null ? (
-            <span className="text-muted-foreground">
+            <span>
               ({change > 0 ? "+" : ""}
               {change.toFixed(1)})
             </span>
@@ -227,7 +234,14 @@ function OverallProgressCard({
             </div>
           </div>
 
-          <Progress value={score ?? 0} aria-label="Overall speaking score" />
+          {score !== null ? (
+            <Progress
+              value={score}
+              aria-label={`Overall speaking score ${Math.round(score)} out of 100`}
+            />
+          ) : (
+            <p className="text-xs text-muted-foreground">No overall score available yet.</p>
+          )}
         </div>
       </div>
 
@@ -286,6 +300,11 @@ function RecentTrendCard({ trends }: { trends: ImprovementTrends }) {
         {SKILLS.map(({ key, label }) => {
           const trend = trends.skills[key];
 
+          const scoreSummary =
+            trend.points.length > 0
+              ? trend.points.map((point) => `${point.score}`).join(", ")
+              : "No feedback yet";
+
           return (
             <div
               key={key}
@@ -295,7 +314,8 @@ function RecentTrendCard({ trends }: { trends: ImprovementTrends }) {
 
               <div
                 className="flex h-12 items-end gap-1 overflow-hidden rounded-md bg-muted/40 px-2 pt-2"
-                aria-label={`${label} recent score history`}
+                role="img"
+                aria-label={`${label} recent scores: ${scoreSummary}`}
               >
                 {trend.points.length > 0 ? (
                   trend.points.map((point, index) => (
@@ -305,7 +325,7 @@ function RecentTrendCard({ trends }: { trends: ImprovementTrends }) {
                       style={{
                         height: `${Math.max(point.score, 4)}%`,
                       }}
-                      title={`${label}: ${point.score}/100`}
+                      aria-hidden="true"
                     />
                   ))
                 ) : (
@@ -474,7 +494,7 @@ export function SpeakingProgressDashboard() {
         role="status"
         aria-live="polite"
       >
-        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
         Loading speaking progress...
       </Card>
     );
@@ -511,7 +531,7 @@ export function SpeakingProgressDashboard() {
             }}
           >
             {state.loading ? (
-              <Loader2 className="animate-spin" aria-hidden="true" />
+              <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
             ) : (
               <RefreshCw aria-hidden="true" />
             )}
@@ -529,7 +549,7 @@ export function SpeakingProgressDashboard() {
 
         {state.loading && !hasData ? (
           <Card className="flex items-center gap-3 p-6" role="status" aria-live="polite">
-            <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />
+            <Loader2 className="h-5 w-5 motion-safe:animate-spin" aria-hidden="true" />
 
             <div>
               <p className="font-medium">Loading your progress</p>

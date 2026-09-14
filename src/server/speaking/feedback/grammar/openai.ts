@@ -2,6 +2,7 @@ import {
   getConversationAiApiKey,
   getConversationAiModel,
 } from "@/server/speaking/conversation-ai/config";
+import { logServerError } from "@/lib/observability/server-logger";
 
 import { buildGrammarEvaluationInstructions } from "./prompt";
 import { grammarEvaluationSchema } from "./schema";
@@ -259,6 +260,12 @@ export async function evaluateGrammarWithOpenAi(
   }
 
   if (!response.ok) {
+    logServerError({
+      subsystem: "speaking_grammar_feedback",
+      operation: "openai_request",
+      code: `http_${response.status}`,
+    });
+
     throw mapOpenAiStatus(response.status);
   }
 

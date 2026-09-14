@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { logServerError } from "@/lib/observability/server-logger";
 
 const grammarEvaluationInputSchema = z.object({
   userId: z.string().uuid(),
@@ -177,7 +178,16 @@ export const evaluateSpeakingGrammarServerFn = createServerFn({
         };
       }
 
-      const result = await grammarModule.evaluateSpeakingGrammar(message.content);
+      const { evaluateSpeakingFeedbackOnce } =
+        await import("@/server/speaking/feedback/evaluate-once");
+
+      const result = await evaluateSpeakingFeedbackOnce({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "grammar",
+        evaluate: () => grammarModule.evaluateSpeakingGrammar(message.content),
+      });
 
       const stored = await persistenceModule.persistSpeakingFeedback({
         userId: data.userId,
@@ -207,7 +217,11 @@ export const evaluateSpeakingGrammarServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking Grammar Feedback] Evaluation failed", error);
+      logServerError({
+        subsystem: "speaking_grammar_feedback",
+        operation: "evaluate_grammar",
+        error,
+      });
 
       return {
         ok: false,

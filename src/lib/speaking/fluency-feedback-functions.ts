@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-
+import { logServerError } from "@/lib/observability/server-logger";
 import { z } from "zod";
 
 const fluencyEvaluationInputSchema = z.object({
@@ -206,7 +206,16 @@ export const evaluateSpeakingFluencyServerFn = createServerFn({
         };
       }
 
-      const result = await fluencyModule.evaluateSpeakingFluency(message.content);
+      const { evaluateSpeakingFeedbackOnce } =
+        await import("@/server/speaking/feedback/evaluate-once");
+
+      const result = await evaluateSpeakingFeedbackOnce({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "fluency",
+        evaluate: () => fluencyModule.evaluateSpeakingFluency(message.content),
+      });
 
       const stored = await persistenceModule.persistSpeakingFeedback({
         userId: data.userId,
@@ -240,7 +249,11 @@ export const evaluateSpeakingFluencyServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking Fluency Feedback] Evaluation failed", error);
+      logServerError({
+        subsystem: "speaking_fluency_feedback",
+        operation: "evaluate_fluency",
+        error,
+      });
 
       return {
         ok: false,

@@ -1022,7 +1022,7 @@ export function ConversationScreen() {
           role="status"
           aria-live="polite"
         >
-          <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden="true" />
+          <Loader2 className="h-7 w-7 motion-safe:animate-spin text-primary" aria-hidden="true" />
 
           <div>
             <p className="font-medium">Recovering your conversation</p>
@@ -1114,7 +1114,7 @@ export function ConversationScreen() {
               disabled={interactionBusy}
             >
               {status === "closing" ? (
-                <Loader2 className="animate-spin" aria-hidden="true" />
+                <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
               ) : (
                 <CheckCircle2 aria-hidden="true" />
               )}
@@ -1274,7 +1274,7 @@ export function ConversationScreen() {
               role="status"
               aria-live="polite"
             >
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
               <span>Preparing your microphone...</span>
             </div>
           ) : null}
@@ -1303,7 +1303,7 @@ export function ConversationScreen() {
               role="status"
               aria-live="polite"
             >
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
               <span>Finishing your recording...</span>
             </div>
           ) : null}
@@ -1365,7 +1365,7 @@ export function ConversationScreen() {
               role="status"
               aria-live="polite"
             >
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
 
               <span>Converting your speech to text...</span>
             </div>
@@ -1455,7 +1455,7 @@ export function ConversationScreen() {
 
             {audioRecorderStatus === "acquiring" || audioRecorderStatus === "stopping" ? (
               <Button type="button" disabled aria-disabled="true">
-                <Loader2 className="animate-spin" aria-hidden="true" />
+                <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
 
                 {audioRecorderStatus === "acquiring" ? "Preparing" : "Stopping"}
               </Button>
@@ -1471,7 +1471,7 @@ export function ConversationScreen() {
                 aria-label="Transcribe this recording and add it to the conversation"
               >
                 {isTranscribing ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
                 ) : (
                   <Send aria-hidden="true" />
                 )}
@@ -1508,7 +1508,7 @@ export function ConversationScreen() {
           role="status"
           aria-live="polite"
         >
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
 
           <span>Synchronizing this session with the server...</span>
         </div>
@@ -1597,8 +1597,11 @@ export function ConversationScreen() {
 
         <div
           className="flex max-h-[56vh] min-h-85 flex-1 flex-col gap-4 overflow-y-auto p-4"
+          role="log"
+          aria-label="Speaking conversation messages"
           aria-live="polite"
-          aria-relevant="additions"
+          aria-relevant="additions text"
+          aria-busy={status === "sending" || isGeneratingReply}
         >
           {messages.length === 0 ? (
             <div className="flex flex-1 items-center justify-center py-12">
@@ -1658,7 +1661,7 @@ export function ConversationScreen() {
                           aria-controls={`speaking-feedback-${message.id}`}
                         >
                           {feedbackState.messageId === message.id && feedbackState.loading ? (
-                            <Loader2 className="animate-spin" aria-hidden="true" />
+                            <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
                           ) : (
                             <BookOpenCheck aria-hidden="true" />
                           )}
@@ -1683,7 +1686,10 @@ export function ConversationScreen() {
                             className="flex items-center gap-2 rounded-lg border border-primary-foreground/20 p-3 text-sm"
                             role="status"
                           >
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                            <Loader2
+                              className="h-4 w-4 motion-safe:animate-spin"
+                              aria-hidden="true"
+                            />
 
                             <span>Analyzing your English...</span>
                           </div>
@@ -2018,7 +2024,7 @@ export function ConversationScreen() {
           {isGeneratingReply ? (
             <div className="flex justify-start" role="status" aria-live="polite">
               <div className="flex max-w-[85%] items-center gap-2 rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground sm:max-w-[72%]">
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                <Loader2 className="h-4 w-4 motion-safe:animate-spin" aria-hidden="true" />
 
                 <span>AI Coach is thinking...</span>
               </div>
@@ -2079,6 +2085,7 @@ export function ConversationScreen() {
               disabled={conversationClosed || interactionBusy}
               maxLength={10_000}
               rows={3}
+              aria-describedby="speaking-message-help speaking-message-count"
               className="min-h-21 resize-none"
             />
 
@@ -2089,7 +2096,7 @@ export function ConversationScreen() {
             >
               {status === "sending" ? (
                 <>
-                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
                   <span className="sm:sr-only">Sending</span>
                 </>
               ) : (
@@ -2102,9 +2109,11 @@ export function ConversationScreen() {
           </div>
 
           <div className="mt-2 flex justify-between gap-3 text-xs text-muted-foreground">
-            <span>Your draft stays here if sending fails.</span>
+            <span id="speaking-message-help">Your draft stays here if sending fails.</span>
 
-            <span>{draft.length}/10000</span>
+            <span id="speaking-message-count" aria-live="off">
+              {draft.length}/10000 characters
+            </span>
           </div>
         </form>
       </section>

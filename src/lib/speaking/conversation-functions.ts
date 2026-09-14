@@ -1,4 +1,6 @@
+import { z } from "zod";
 import { createServerFn } from "@tanstack/react-start";
+import { logServerError } from "@/lib/observability/server-logger";
 
 type ConversationReplyFailureCode =
   | "configuration_error"
@@ -18,30 +20,15 @@ type ConversationReplyFailure = {
   retryable: boolean;
 };
 
-type GenerateConversationReplyInput = {
-  userId: string;
-  sessionId: string;
-};
+const generateConversationReplyInputSchema = z.object({
+  userId: z.string().uuid(),
+  sessionId: z.string().uuid(),
+});
+
+type GenerateConversationReplyInput = z.infer<typeof generateConversationReplyInputSchema>;
 
 function validateInput(data: unknown): GenerateConversationReplyInput {
-  if (!data || typeof data !== "object") {
-    throw new Error("Invalid AI conversation request.");
-  }
-
-  const candidate = data as Partial<GenerateConversationReplyInput>;
-
-  if (typeof candidate.userId !== "string" || !candidate.userId.trim()) {
-    throw new Error("A user ID is required.");
-  }
-
-  if (typeof candidate.sessionId !== "string" || !candidate.sessionId.trim()) {
-    throw new Error("A speaking session ID is required.");
-  }
-
-  return {
-    userId: candidate.userId.trim(),
-    sessionId: candidate.sessionId.trim(),
-  };
+  return generateConversationReplyInputSchema.parse(data);
 }
 
 function getSafeFailureMessage(code: ConversationReplyFailureCode): string {
@@ -204,8 +191,9 @@ export const generateSpeakingCoachReplyServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking AI] Unexpected conversation generation failure", {
-        sessionId,
+      logServerError({
+        subsystem: "speaking_ai",
+        operation: "generate_conversation_reply",
         error,
       });
 

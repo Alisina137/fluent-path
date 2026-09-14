@@ -17,13 +17,6 @@ export async function requireServerModuleAccess(
 ): Promise<ServerModuleAccessResult> {
   const result = await getServerModuleAccess(userId, moduleId);
 
-  console.log("[Module Access Debug]", {
-    userId,
-    moduleId,
-    allowed: result.allowed,
-    state: result.state,
-  });
-
   if (!result.allowed) {
     throw new ModuleAccessError(result.state);
   }

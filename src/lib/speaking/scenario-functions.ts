@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { logServerError } from "@/lib/observability/server-logger";
 
 const generateCustomSpeakingScenarioInputSchema = z.object({
   userId: z.string().uuid(),
@@ -154,7 +155,11 @@ export const generateCustomSpeakingScenarioServerFn = createServerFn({
         }
       }
 
-      console.error("[Speaking Custom Scenario] Generation failed", error);
+      logServerError({
+        subsystem: "speaking_custom_scenario",
+        operation: "generate_custom_scenario",
+        error,
+      });
 
       return {
         ok: false,

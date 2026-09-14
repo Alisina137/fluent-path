@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { logServerError } from "@/lib/observability/server-logger";
 
 type TranscriptionFailureCode =
   | "invalid_audio"
@@ -16,6 +18,18 @@ type TranscriptionFailure = {
   message: string;
   retryable: boolean;
 };
+
+const identifierSchema = z.string().uuid();
+
+function readRequiredUuid(formData: FormData, key: string): string {
+  const value = formData.get(key);
+
+  if (typeof value !== "string") {
+    throw new Error(`Missing required transcription field: ${key}`);
+  }
+
+  return identifierSchema.parse(value.trim());
+}
 
 function validateTranscriptionFormData(data: unknown): FormData {
   if (!(data instanceof FormData)) {
@@ -40,9 +54,9 @@ export const transcribeSpeakingAudioServerFn = createServerFn({
 })
   .validator(validateTranscriptionFormData)
   .handler(async ({ data }) => {
-    const userId = readRequiredString(data, "userId");
+    const userId = readRequiredUuid(data, "userId");
 
-    const sessionId = readRequiredString(data, "sessionId");
+    const sessionId = readRequiredUuid(data, "sessionId");
 
     const durationValue = readRequiredString(data, "durationMs");
 
@@ -139,8 +153,9 @@ export const transcribeSpeakingAudioServerFn = createServerFn({
         };
       }
 
-      console.error("[Speaking STT] Unexpected transcription failure", {
-        sessionId,
+      logServerError({
+        subsystem: "speaking_stt",
+        operation: "transcribe_recording",
         error,
       });
 
