@@ -181,6 +181,13 @@ export const generateSpeakingCoachReplyServerFn = createServerFn({
       if (error instanceof ConversationAiError) {
         const code = error.code;
 
+        logServerError({
+          subsystem: "speaking_ai",
+          operation: "generate_conversation_reply",
+          error,
+          code,
+        });
+
         return {
           ok: false as const,
           error: {
