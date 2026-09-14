@@ -19,6 +19,7 @@ import { transcribeSpeakingAudioServerFn } from "@/lib/speaking/transcription-fu
 import { validateAudioRecording } from "@/lib/speaking/audio-validation";
 
 import { useMicrophonePermission } from "@/hooks/useMicrophonePermission";
+import { generateSpeakingCoachReplyServerFn } from "@/lib/speaking/conversation-functions";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,6 +129,13 @@ export function ConversationScreen() {
   const [draft, setDraft] = useState("");
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionError, setTranscriptionError] = useState<{
+    code: string;
+    message: string;
+    retryable: boolean;
+  } | null>(null);
+  const [isGeneratingReply, setIsGeneratingReply] = useState(false);
+
+  const [aiReplyError, setAiReplyError] = useState<{
     code: string;
     message: string;
     retryable: boolean;
@@ -286,6 +294,51 @@ export function ConversationScreen() {
     });
   }, [messages]);
 
+  async function generateAiReply(): Promise<boolean> {
+    if (!userId || !speakingSession || speakingSession.status !== "active" || isGeneratingReply) {
+      return false;
+    }
+
+    setIsGeneratingReply(true);
+    setAiReplyError(null);
+
+    try {
+      const result = await generateSpeakingCoachReplyServerFn({
+        data: {
+          userId,
+          sessionId: speakingSession.id,
+        },
+      });
+
+      if (!result.ok) {
+        setAiReplyError(result.error);
+
+        await loadConversation(speakingSession.id);
+
+        return false;
+      }
+
+      await loadConversation(speakingSession.id);
+
+      return true;
+    } catch (error) {
+      console.error("[Speaking AI] Request failed", error);
+
+      setAiReplyError({
+        code: "network_error",
+        message:
+          "The AI Coach could not be reached. Your message has been saved, so you can retry the AI response.",
+        retryable: true,
+      });
+
+      await loadConversation(speakingSession.id);
+
+      return false;
+    } finally {
+      setIsGeneratingReply(false);
+    }
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -301,6 +354,7 @@ export function ConversationScreen() {
 
     setStatus("sending");
     setOperationError(null);
+    setAiReplyError(null);
 
     try {
       await addUserSpeakingMessageServerFn({
@@ -311,14 +365,28 @@ export function ConversationScreen() {
         },
       });
 
+      /*
+       * The learner message now exists in Neon.
+       *
+       * Clear the draft here so an AI failure does
+       * not cause the learner to accidentally submit
+       * the same message again.
+       */
       setDraft("");
 
       await loadConversation(speakingSession.id);
 
       setStatus("ready");
+
+      await generateAiReply();
     } catch (error) {
-      // Deliberately keep the draft.
-      // The learner can retry without retyping.
+      /*
+       * This catch covers failure while saving the
+       * learner message itself.
+       *
+       * Therefore we keep the draft so the learner
+       * can safely retry sending it.
+       */
       setOperationError(classifyError(error));
 
       try {
@@ -383,6 +451,10 @@ export function ConversationScreen() {
       await loadConversation(speakingSession.id);
 
       resetRecording();
+
+      setIsTranscribing(false);
+
+      await generateAiReply();
     } catch (error) {
       console.error("[Speaking STT] Request failed", error);
 
@@ -508,7 +580,11 @@ export function ConversationScreen() {
   const conversationClosed = status === "closed" || speakingSession.status !== "active";
 
   const interactionBusy =
-    status === "sending" || status === "closing" || status === "recovering" || isTranscribing;
+    status === "sending" ||
+    status === "closing" ||
+    status === "recovering" ||
+    isTranscribing ||
+    isGeneratingReply;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
@@ -1082,8 +1158,51 @@ export function ConversationScreen() {
             })
           )}
 
+          {isGeneratingReply ? (
+            <div className="flex justify-start" role="status" aria-live="polite">
+              <div className="flex max-w-[85%] items-center gap-2 rounded-2xl bg-muted px-4 py-3 text-sm text-muted-foreground sm:max-w-[72%]">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+
+                <span>AI Coach is thinking...</span>
+              </div>
+            </div>
+          ) : null}
           <div ref={conversationEndRef} />
         </div>
+
+        {aiReplyError ? (
+          <div
+            className="rounded-xl border border-destructive/30 bg-destructive/5 p-4"
+            role="alert"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="font-medium text-destructive">AI Coach could not respond</p>
+
+                <p className="mt-1 text-sm text-destructive">{aiReplyError.message}</p>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your message has already been saved.
+                </p>
+              </div>
+
+              {aiReplyError.retryable ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={interactionBusy || conversationClosed}
+                  onClick={() => {
+                    void generateAiReply();
+                  }}
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Retry AI response
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="border-t bg-background p-3 sm:p-4">
           <label htmlFor="speaking-message" className="sr-only">
