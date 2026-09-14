@@ -3,13 +3,18 @@ import {
   CheckCircle2,
   Loader2,
   MessageCircle,
-  RefreshCw,
   Mic,
+  Pause,
+  Play,
+  RefreshCw,
+  RotateCcw,
   Send,
   StopCircle,
+  Volume2,
   WifiOff,
   XCircle,
 } from "lucide-react";
+import { generateSpeakingMessageSpeechServerFn } from "@/lib/speaking/tts-functions";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioPreviewUrl } from "@/hooks/useAudioPreviewUrl";
@@ -44,6 +49,13 @@ type SpeakingMessage = Awaited<ReturnType<typeof getSpeakingConversationServerFn
 type ScreenStatus = "booting" | "ready" | "sending" | "recovering" | "closing" | "closed" | "error";
 
 type OperationError = {
+  message: string;
+  retryable: boolean;
+};
+
+type SpeechPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "ended" | "error";
+
+type SpeechPlaybackError = {
   message: string;
   retryable: boolean;
 };
@@ -119,6 +131,21 @@ function formatMessageTime(value: Date | string): string {
     minute: "2-digit",
   });
 }
+function createAudioObjectUrl(audioBase64: string, contentType: string): string {
+  const binary = window.atob(audioBase64);
+
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  const blob = new Blob([bytes], {
+    type: contentType,
+  });
+
+  return URL.createObjectURL(blob);
+}
 
 export function ConversationScreen() {
   const { session: authSession } = useAuth();
@@ -142,11 +169,23 @@ export function ConversationScreen() {
   } | null>(null);
   const [lastTranscript, setLastTranscript] = useState<string | null>(null);
 
+  const [speechMessageId, setSpeechMessageId] = useState<string | null>(null);
+
+  const [speechPlaybackStatus, setSpeechPlaybackStatus] = useState<SpeechPlaybackStatus>("idle");
+
+  const [speechPlaybackError, setSpeechPlaybackError] = useState<SpeechPlaybackError | null>(null);
+
   const [status, setStatus] = useState<ScreenStatus>("booting");
 
   const [operationError, setOperationError] = useState<OperationError | null>(null);
 
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
+
+  const coachAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const coachAudioUrlRef = useRef<string | null>(null);
+
+  const speechRequestIdRef = useRef(0);
 
   const userId = authSession?.user?.id ?? null;
   const {
@@ -284,6 +323,27 @@ export function ConversationScreen() {
   }, [loadConversation, speakingSession, userId]);
 
   useEffect(() => {
+    return () => {
+      speechRequestIdRef.current += 1;
+
+      const audio = coachAudioRef.current;
+
+      if (audio) {
+        audio.pause();
+        audio.src = "";
+
+        coachAudioRef.current = null;
+      }
+
+      if (coachAudioUrlRef.current) {
+        URL.revokeObjectURL(coachAudioUrlRef.current);
+
+        coachAudioUrlRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     void bootstrapSession();
   }, [bootstrapSession]);
 
@@ -337,6 +397,240 @@ export function ConversationScreen() {
     } finally {
       setIsGeneratingReply(false);
     }
+  }
+
+  function releaseCoachAudio() {
+    const audio = coachAudioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.src = "";
+
+      coachAudioRef.current = null;
+    }
+
+    if (coachAudioUrlRef.current) {
+      URL.revokeObjectURL(coachAudioUrlRef.current);
+
+      coachAudioUrlRef.current = null;
+    }
+  }
+
+  function handleRetrySpeech(messageId: string) {
+    /*
+     * If audio already exists,
+     * reuse it rather than making
+     * another paid TTS request.
+     */
+    if (speechMessageId === messageId && coachAudioRef.current) {
+      setSpeechPlaybackStatus(coachAudioRef.current.ended ? "ended" : "paused");
+
+      setSpeechPlaybackError(null);
+
+      return;
+    }
+
+    void handlePlaySpeech(messageId);
+  }
+
+  async function handlePlaySpeech(messageId: string) {
+    if (!userId || !speakingSession) {
+      return;
+    }
+
+    /*
+     * Resume an already prepared
+     * audio response.
+     */
+    if (
+      speechMessageId === messageId &&
+      coachAudioRef.current &&
+      speechPlaybackStatus === "paused"
+    ) {
+      try {
+        await coachAudioRef.current.play();
+
+        setSpeechPlaybackStatus("playing");
+
+        setSpeechPlaybackError(null);
+      } catch (error) {
+        console.error("[Speaking TTS] Playback failed", error);
+
+        setSpeechPlaybackStatus("error");
+
+        setSpeechPlaybackError({
+          message: "The audio is ready but your browser could not start playback.",
+          retryable: true,
+        });
+      }
+
+      return;
+    }
+
+    /*
+     * Replay completed audio
+     * without another paid TTS call.
+     */
+    if (
+      speechMessageId === messageId &&
+      coachAudioRef.current &&
+      speechPlaybackStatus === "ended"
+    ) {
+      try {
+        coachAudioRef.current.currentTime = 0;
+
+        await coachAudioRef.current.play();
+
+        setSpeechPlaybackStatus("playing");
+
+        setSpeechPlaybackError(null);
+      } catch (error) {
+        console.error("[Speaking TTS] Replay failed", error);
+
+        setSpeechPlaybackStatus("error");
+
+        setSpeechPlaybackError({
+          message: "The audio could not be replayed.",
+          retryable: true,
+        });
+      }
+
+      return;
+    }
+
+    /*
+     * A new message requires new
+     * speech generation.
+     */
+    const requestId = speechRequestIdRef.current + 1;
+
+    speechRequestIdRef.current = requestId;
+
+    releaseCoachAudio();
+
+    setSpeechMessageId(messageId);
+
+    setSpeechPlaybackStatus("loading");
+
+    setSpeechPlaybackError(null);
+
+    try {
+      const result = await generateSpeakingMessageSpeechServerFn({
+        data: {
+          userId,
+          sessionId: speakingSession.id,
+          messageId,
+        },
+      });
+
+      /*
+       * Ignore a response if the
+       * learner selected another
+       * message while this request
+       * was running.
+       */
+      if (speechRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      if (!result.ok) {
+        setSpeechPlaybackStatus("error");
+
+        setSpeechPlaybackError({
+          message: result.error.message,
+          retryable: result.error.retryable,
+        });
+
+        return;
+      }
+
+      const audioUrl = createAudioObjectUrl(result.audioBase64, result.contentType);
+
+      const audio = new Audio(audioUrl);
+
+      audio.preload = "auto";
+
+      coachAudioUrlRef.current = audioUrl;
+
+      coachAudioRef.current = audio;
+
+      audio.onplay = () => {
+        if (speechRequestIdRef.current === requestId) {
+          setSpeechPlaybackStatus("playing");
+        }
+      };
+
+      audio.onpause = () => {
+        if (speechRequestIdRef.current !== requestId || audio.ended) {
+          return;
+        }
+
+        setSpeechPlaybackStatus("paused");
+      };
+
+      audio.onended = () => {
+        if (speechRequestIdRef.current === requestId) {
+          setSpeechPlaybackStatus("ended");
+        }
+      };
+
+      audio.onerror = () => {
+        if (speechRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setSpeechPlaybackStatus("error");
+
+        setSpeechPlaybackError({
+          message: "The generated audio could not be played.",
+          retryable: true,
+        });
+      };
+
+      try {
+        await audio.play();
+      } catch (error) {
+        /*
+         * Some browsers can block
+         * playback after an async
+         * network operation.
+         *
+         * Keep the generated audio
+         * so the learner can press
+         * Play again without another
+         * paid request.
+         */
+        console.error("[Speaking TTS] Automatic playback was blocked", error);
+
+        setSpeechPlaybackStatus("paused");
+
+        setSpeechPlaybackError({
+          message: "The voice is ready. Press Play again to hear it.",
+          retryable: true,
+        });
+      }
+    } catch (error) {
+      if (speechRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      console.error("[Speaking TTS] Request failed", error);
+
+      setSpeechPlaybackStatus("error");
+
+      setSpeechPlaybackError({
+        message: "The voice request could not reach the server. Please try again.",
+        retryable: true,
+      });
+    }
+  }
+
+  function handlePauseSpeech(messageId: string) {
+    if (speechMessageId !== messageId || !coachAudioRef.current) {
+      return;
+    }
+
+    coachAudioRef.current.pause();
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1152,6 +1446,100 @@ export function ConversationScreen() {
                     <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
                       {message.content}
                     </p>
+
+                    {!isUser ? (
+                      <div className="mt-3 border-t border-border/50 pt-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {speechMessageId === message.id && speechPlaybackStatus === "loading" ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled
+                              aria-label="Preparing AI Coach voice"
+                            >
+                              <Loader2 className="animate-spin" aria-hidden="true" />
+                              Preparing voice
+                            </Button>
+                          ) : speechMessageId === message.id &&
+                            speechPlaybackStatus === "playing" ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                handlePauseSpeech(message.id);
+                              }}
+                              aria-label="Pause AI Coach voice"
+                            >
+                              <Pause aria-hidden="true" />
+                              Pause
+                            </Button>
+                          ) : speechMessageId === message.id &&
+                            speechPlaybackStatus === "paused" ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                void handlePlaySpeech(message.id);
+                              }}
+                              aria-label="Resume AI Coach voice"
+                            >
+                              <Play aria-hidden="true" />
+                              Resume
+                            </Button>
+                          ) : speechMessageId === message.id && speechPlaybackStatus === "ended" ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                void handlePlaySpeech(message.id);
+                              }}
+                              aria-label="Replay AI Coach voice"
+                            >
+                              <RotateCcw aria-hidden="true" />
+                              Replay
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                void handlePlaySpeech(message.id);
+                              }}
+                              aria-label="Play AI Coach voice"
+                            >
+                              <Volume2 aria-hidden="true" />
+                              Play
+                            </Button>
+                          )}
+                        </div>
+
+                        {speechMessageId === message.id && speechPlaybackError ? (
+                          <div className="mt-2 text-xs" role="alert">
+                            <p className="text-destructive">{speechPlaybackError.message}</p>
+
+                            {speechPlaybackStatus === "error" && speechPlaybackError.retryable ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="mt-1 h-auto px-2 py-1 text-xs"
+                                onClick={() => {
+                                  handleRetrySpeech(message.id);
+                                }}
+                              >
+                                <RefreshCw aria-hidden="true" />
+                                Retry voice
+                              </Button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
