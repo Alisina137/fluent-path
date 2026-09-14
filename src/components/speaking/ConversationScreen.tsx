@@ -14,6 +14,8 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioPreviewUrl } from "@/hooks/useAudioPreviewUrl";
 import { formatAudioDuration } from "@/lib/speaking/audio-format";
+import { createTranscriptionFormData } from "@/lib/speaking/create-transcription-form-data";
+import { transcribeSpeakingAudioServerFn } from "@/lib/speaking/transcription-functions";
 import { validateAudioRecording } from "@/lib/speaking/audio-validation";
 
 import { useMicrophonePermission } from "@/hooks/useMicrophonePermission";
@@ -124,6 +126,13 @@ export function ConversationScreen() {
 
   const [messages, setMessages] = useState<SpeakingMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionError, setTranscriptionError] = useState<{
+    code: string;
+    message: string;
+    retryable: boolean;
+  } | null>(null);
+  const [lastTranscript, setLastTranscript] = useState<string | null>(null);
 
   const [status, setStatus] = useState<ScreenStatus>("booting");
 
@@ -335,6 +344,59 @@ export function ConversationScreen() {
     }
   }
 
+  async function handleTranscription() {
+    if (
+      !userId ||
+      !speakingSession ||
+      !recording ||
+      !audioValidation?.valid ||
+      isTranscribing ||
+      status !== "ready"
+    ) {
+      return;
+    }
+
+    setIsTranscribing(true);
+    setTranscriptionError(null);
+    setLastTranscript(null);
+    setOperationError(null);
+
+    try {
+      const formData = createTranscriptionFormData({
+        userId,
+        sessionId: speakingSession.id,
+        recording,
+        language: "en",
+      });
+
+      const result = await transcribeSpeakingAudioServerFn({
+        data: formData,
+      });
+
+      if (!result.ok) {
+        setTranscriptionError(result.error);
+        return;
+      }
+
+      setLastTranscript(result.transcript);
+
+      await loadConversation(speakingSession.id);
+
+      resetRecording();
+    } catch (error) {
+      console.error("[Speaking STT] Request failed", error);
+
+      setTranscriptionError({
+        code: "network_error",
+        message:
+          "The transcription request could not reach the server. Check your connection and try again.",
+        retryable: true,
+      });
+    } finally {
+      setIsTranscribing(false);
+    }
+  }
+
   async function handleComplete() {
     if (!userId || !speakingSession || status !== "ready") {
       return;
@@ -445,7 +507,8 @@ export function ConversationScreen() {
 
   const conversationClosed = status === "closed" || speakingSession.status !== "active";
 
-  const interactionBusy = status === "sending" || status === "closing" || status === "recovering";
+  const interactionBusy =
+    status === "sending" || status === "closing" || status === "recovering" || isTranscribing;
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
@@ -729,6 +792,53 @@ export function ConversationScreen() {
             </div>
           ) : null}
 
+          {isTranscribing ? (
+            <div
+              className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+
+              <span>Converting your speech to text...</span>
+            </div>
+          ) : null}
+
+          {transcriptionError ? (
+            <div
+              className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm"
+              role="alert"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-medium text-destructive">Transcription failed</p>
+
+                  <p className="mt-1 text-destructive">{transcriptionError.message}</p>
+
+                  <p className="mt-1 text-muted-foreground">
+                    {transcriptionError.retryable
+                      ? "Your recording has been kept. You can retry without recording again."
+                      : "Your recording has been kept. You may listen to it or make a new recording."}
+                  </p>
+                </div>
+
+                {transcriptionError.retryable && recording && audioValidation?.valid ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={interactionBusy || conversationClosed}
+                    onClick={() => {
+                      void handleTranscription();
+                    }}
+                  >
+                    <RefreshCw aria-hidden="true" />
+                    Retry transcription
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           {audioRecorderError ? (
             <p className="text-sm text-destructive" role="alert">
               {audioRecorderError}
@@ -742,6 +852,8 @@ export function ConversationScreen() {
               <Button
                 type="button"
                 onClick={() => {
+                  setTranscriptionError(null);
+                  setLastTranscript(null);
                   void startRecording();
                 }}
                 disabled={
@@ -782,11 +894,38 @@ export function ConversationScreen() {
               </Button>
             ) : null}
 
+            {audioRecorderStatus === "recorded" && recording && audioValidation?.valid ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleTranscription();
+                }}
+                disabled={conversationClosed || interactionBusy}
+                aria-label="Transcribe this recording and add it to the conversation"
+              >
+                {isTranscribing ? (
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                ) : (
+                  <Send aria-hidden="true" />
+                )}
+
+                {isTranscribing
+                  ? "Transcribing..."
+                  : transcriptionError?.retryable
+                    ? "Retry"
+                    : "Use recording"}
+              </Button>
+            ) : null}
+
             {audioRecorderStatus === "recorded" ? (
               <Button
                 type="button"
                 variant="outline"
-                onClick={resetRecording}
+                onClick={() => {
+                  setTranscriptionError(null);
+                  setLastTranscript(null);
+                  resetRecording();
+                }}
                 aria-label="Clear the current voice recording"
               >
                 Clear recording
@@ -852,6 +991,23 @@ export function ConversationScreen() {
         </div>
       ) : null}
 
+      {lastTranscript ? (
+        <div className="rounded-xl border bg-card p-4 shadow-sm" role="status" aria-live="polite">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+
+            <div>
+              <p className="font-medium">Speech recognized</p>
+
+              <p className="mt-1 text-sm text-muted-foreground">"{lastTranscript}"</p>
+
+              <p className="mt-2 text-xs text-muted-foreground">
+                The transcript has been added to your conversation.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <section
         className="flex min-h-105 flex-col overflow-hidden rounded-xl border bg-card shadow-sm"
         aria-label="Speaking conversation"
