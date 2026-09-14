@@ -53,7 +53,8 @@ export const MODULES: LearningModule[] = [
       "Real-time pronunciation and fluency feedback with an AI conversation partner who adapts to your level.",
     icon: "Mic",
     price: 5,
-    status: "coming_soon",
+    status: "available",
+    release_status: "available",
     category: "speaking",
     difficulty: "all_levels",
     featured: true,
@@ -73,10 +74,7 @@ export const MODULES: LearningModule[] = [
       "Role-play scenarios",
       "Session transcripts",
     ],
-    outcomes: [
-      "Hold a 5-minute unscripted conversation",
-      "Pronounce tricky sounds correctly",
-    ],
+    outcomes: ["Hold a 5-minute unscripted conversation", "Pronounce tricky sounds correctly"],
     related_goals: ["speaking", "travel", "interview"],
     created_at: CREATED,
   }),
@@ -167,7 +165,12 @@ export const MODULES: LearningModule[] = [
       "Learn vocabulary in context",
       "Understand complex texts",
     ],
-    features: ["Level-adapted articles", "Tap-to-translate", "Comprehension quizzes", "Reading stats"],
+    features: [
+      "Level-adapted articles",
+      "Tap-to-translate",
+      "Comprehension quizzes",
+      "Reading stats",
+    ],
     outcomes: ["Read a news article without translation", "Score higher on reading tests"],
     related_goals: ["reading", "vocabulary", "ielts"],
     created_at: CREATED,
@@ -183,13 +186,21 @@ export const MODULES: LearningModule[] = [
     category: "grammar",
     difficulty: "beginner",
     estimated_learning_time: "15 min / day · ~12 weeks",
-    audience: ["Beginners rebuilding grammar foundations", "Learners who want native-language explanations"],
+    audience: [
+      "Beginners rebuilding grammar foundations",
+      "Learners who want native-language explanations",
+    ],
     benefits: [
       "Fix the mistakes you keep making",
       "Understand tenses clearly",
       "Build sentences with confidence",
     ],
-    features: ["Native-language explanations", "Interactive exercises", "Level tracks", "Cheat sheets"],
+    features: [
+      "Native-language explanations",
+      "Interactive exercises",
+      "Level tracks",
+      "Cheat sheets",
+    ],
     outcomes: ["Master all 12 English tenses", "Write grammatically correct sentences"],
     related_goals: ["writing", "speaking"],
     created_at: CREATED,
@@ -234,7 +245,12 @@ export const MODULES: LearningModule[] = [
       "Learn exam strategies that work",
       "Track your band score progress",
     ],
-    features: ["Full mock tests", "Writing band feedback", "Speaking simulator", "Vocabulary packs"],
+    features: [
+      "Full mock tests",
+      "Writing band feedback",
+      "Speaking simulator",
+      "Vocabulary packs",
+    ],
     outcomes: ["Target band 7+ across sections", "Feel exam-ready in weeks"],
     related_goals: ["ielts", "writing", "speaking"],
     created_at: CREATED,
@@ -256,7 +272,12 @@ export const MODULES: LearningModule[] = [
       "Refine tone and clarity",
       "Prepare for real-world scenarios",
     ],
-    features: ["Industry question packs", "AI mock interviews", "Answer scoring", "Body of examples"],
+    features: [
+      "Industry question packs",
+      "AI mock interviews",
+      "Answer scoring",
+      "Body of examples",
+    ],
     outcomes: ["Handle behavioural questions with ease", "Feel calm and prepared"],
     related_goals: ["interview", "speaking", "business"],
     created_at: CREATED,
@@ -301,10 +322,7 @@ export const MODULE_CATEGORIES = [
   { value: "career", label: "Career" },
 ] as const;
 
-export const DIFFICULTY_LABELS: Record<
-  import("@/lib/types").ModuleDifficulty,
-  string
-> = {
+export const DIFFICULTY_LABELS: Record<import("@/lib/types").ModuleDifficulty, string> = {
   beginner: "Beginner",
   intermediate: "Intermediate",
   advanced: "Advanced",

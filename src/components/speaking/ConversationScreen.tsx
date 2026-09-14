@@ -4,12 +4,19 @@ import {
   Loader2,
   MessageCircle,
   RefreshCw,
+  Mic,
   Send,
   StopCircle,
   WifiOff,
   XCircle,
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useAudioPreviewUrl } from "@/hooks/useAudioPreviewUrl";
+import { formatAudioDuration } from "@/lib/speaking/audio-format";
+import { validateAudioRecording } from "@/lib/speaking/audio-validation";
+
+import { useMicrophonePermission } from "@/hooks/useMicrophonePermission";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,6 +132,26 @@ export function ConversationScreen() {
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
 
   const userId = authSession?.user?.id ?? null;
+  const {
+    state: microphonePermission,
+    errorMessage: microphoneError,
+    requestPermission,
+    refreshPermission,
+  } = useMicrophonePermission();
+  const {
+    status: audioRecorderStatus,
+    recording,
+    errorMessage: audioRecorderError,
+    elapsedMs: audioRecordingElapsedMs,
+    isSupported: isAudioRecorderSupported,
+    startRecording,
+    stopRecording,
+    resetRecording,
+  } = useAudioRecorder();
+
+  const audioValidation = recording ? validateAudioRecording(recording) : null;
+
+  const audioPreviewUrl = useAudioPreviewUrl(recording?.blob);
 
   const loadConversation = useCallback(
     async (sessionId: string) => {
@@ -358,6 +385,10 @@ export function ConversationScreen() {
     }
   }
 
+  async function handleMicrophonePermissionRequest() {
+    await requestPermission();
+  }
+
   if (status === "booting") {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -463,6 +494,308 @@ export function ConversationScreen() {
         ) : null}
       </header>
 
+      <section
+        className="rounded-xl border bg-card p-4 shadow-sm"
+        aria-labelledby="microphone-permission-title"
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-muted p-2">
+              <Mic className="h-5 w-5" aria-hidden="true" />
+            </div>
+
+            <div>
+              <h2 id="microphone-permission-title" className="font-medium">
+                Microphone access
+              </h2>
+
+              {microphonePermission === "checking" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Checking microphone availability...
+                </p>
+              ) : null}
+
+              {microphonePermission === "prompt" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Allow microphone access to prepare for voice practice.
+                </p>
+              ) : null}
+
+              {microphonePermission === "granted" ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Microphone access is ready for voice practice.
+                </p>
+              ) : null}
+
+              {microphonePermission === "denied" ? (
+                <p className="mt-1 text-sm text-destructive">
+                  Microphone permission is blocked. Update your browser permission settings and
+                  check again.
+                </p>
+              ) : null}
+
+              {microphonePermission === "unsupported" ? (
+                <p className="mt-1 text-sm text-destructive">
+                  Microphone access is not supported in this browser or environment.
+                </p>
+              ) : null}
+
+              {microphonePermission === "unavailable" ? (
+                <p className="mt-1 text-sm text-destructive">No usable microphone was found.</p>
+              ) : null}
+
+              {microphonePermission === "error" ? (
+                <p className="mt-1 text-sm text-destructive">
+                  {microphoneError ?? "The microphone could not be accessed."}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex shrink-0 gap-2">
+            {microphonePermission === "prompt" ? (
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleMicrophonePermissionRequest();
+                }}
+              >
+                <Mic aria-hidden="true" />
+                Allow microphone
+              </Button>
+            ) : null}
+
+            {microphonePermission === "denied" ||
+            microphonePermission === "error" ||
+            microphonePermission === "unavailable" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  void refreshPermission();
+                }}
+              >
+                <RefreshCw aria-hidden="true" />
+                Check again
+              </Button>
+            ) : null}
+
+            {microphonePermission === "granted" ? (
+              <div
+                className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                role="status"
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Ready
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section
+        className="rounded-xl border bg-card p-4 shadow-sm"
+        aria-labelledby="audio-recorder-title"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 id="audio-recorder-title" className="font-medium">
+                Voice recording
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Record your answer for up to 2 minutes. You can listen to it before it is used for
+                speaking practice.
+              </p>
+            </div>
+
+            <div
+              className="shrink-0 rounded-md border px-3 py-2 text-sm font-medium"
+              aria-label={`Recording time ${formatAudioDuration(
+                audioRecordingElapsedMs,
+              )} of 2 minutes`}
+            >
+              {formatAudioDuration(audioRecordingElapsedMs)} / 2:00
+            </div>
+          </div>
+
+          {!isAudioRecorderSupported ? (
+            <p className="text-sm text-destructive" role="alert">
+              Audio recording is not supported by this browser.
+            </p>
+          ) : null}
+
+          {isAudioRecorderSupported && microphonePermission !== "granted" ? (
+            <p className="text-sm text-muted-foreground">
+              Allow microphone access before starting a recording.
+            </p>
+          ) : null}
+
+          {microphonePermission === "granted" && audioRecorderStatus === "idle" ? (
+            <p className="text-sm text-muted-foreground">
+              Your microphone is ready. Start recording when you are ready to speak.
+            </p>
+          ) : null}
+
+          {audioRecorderStatus === "acquiring" ? (
+            <div
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Preparing your microphone...</span>
+            </div>
+          ) : null}
+
+          {audioRecorderStatus === "recording" ? (
+            <div
+              className="rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-destructive" aria-hidden="true" />
+
+                <p className="text-sm font-medium text-destructive">Recording in progress</p>
+              </div>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Speak naturally. Click Stop recording when you are finished.
+              </p>
+            </div>
+          ) : null}
+
+          {audioRecorderStatus === "stopping" ? (
+            <div
+              className="flex items-center gap-2 text-sm text-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              <span>Finishing your recording...</span>
+            </div>
+          ) : null}
+
+          {audioRecorderStatus === "recorded" && recording ? (
+            <div className="space-y-3 rounded-lg border p-3" aria-live="polite">
+              {audioValidation?.valid ? (
+                <div>
+                  <p className="font-medium">Audio captured and ready.</p>
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    You can listen to your recording before continuing.
+                  </p>
+                </div>
+              ) : (
+                <div role="alert">
+                  <p className="font-medium text-destructive">Recording needs attention.</p>
+
+                  {audioValidation && !audioValidation.valid ? (
+                    <p className="mt-1 text-sm text-destructive">{audioValidation.error.message}</p>
+                  ) : null}
+                </div>
+              )}
+
+              <p className="text-sm text-muted-foreground">
+                {(recording.size / 1024).toFixed(1)} KB
+                {" | "}
+                {(recording.durationMs / 1000).toFixed(1)} seconds
+                {" | "}
+                {recording.mimeType}
+              </p>
+
+              {audioPreviewUrl ? (
+                <div>
+                  <label
+                    htmlFor="speaking-recording-preview"
+                    className="mb-2 block text-sm font-medium"
+                  >
+                    Recording preview
+                  </label>
+
+                  <audio
+                    id="speaking-recording-preview"
+                    className="w-full"
+                    controls
+                    preload="metadata"
+                    src={audioPreviewUrl}
+                  >
+                    Your browser does not support audio playback.
+                  </audio>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {audioRecorderError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {audioRecorderError}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap gap-2" aria-label="Voice recording controls">
+            {(audioRecorderStatus === "idle" ||
+              audioRecorderStatus === "recorded" ||
+              audioRecorderStatus === "error") && (
+              <Button
+                type="button"
+                onClick={() => {
+                  void startRecording();
+                }}
+                disabled={
+                  conversationClosed ||
+                  interactionBusy ||
+                  microphonePermission !== "granted" ||
+                  !isAudioRecorderSupported
+                }
+                aria-label={
+                  audioRecorderStatus === "recorded"
+                    ? "Discard the current recording and record again"
+                    : "Start voice recording"
+                }
+              >
+                <Mic aria-hidden="true" />
+
+                {audioRecorderStatus === "recorded" ? "Record again" : "Start recording"}
+              </Button>
+            )}
+
+            {audioRecorderStatus === "recording" ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={stopRecording}
+                aria-label="Stop voice recording"
+              >
+                <StopCircle aria-hidden="true" />
+                Stop recording
+              </Button>
+            ) : null}
+
+            {audioRecorderStatus === "acquiring" || audioRecorderStatus === "stopping" ? (
+              <Button type="button" disabled aria-disabled="true">
+                <Loader2 className="animate-spin" aria-hidden="true" />
+
+                {audioRecorderStatus === "acquiring" ? "Preparing" : "Stopping"}
+              </Button>
+            ) : null}
+
+            {audioRecorderStatus === "recorded" ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetRecording}
+                aria-label="Clear the current voice recording"
+              >
+                Clear recording
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       {status === "recovering" ? (
         <div
           className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3 text-sm"
@@ -471,7 +804,7 @@ export function ConversationScreen() {
         >
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
 
-          <span>Synchronizing this session with the server…</span>
+          <span>Synchronizing this session with the server...</span>
         </div>
       ) : null}
 

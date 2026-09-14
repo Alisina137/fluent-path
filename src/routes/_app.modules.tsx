@@ -17,9 +17,15 @@ export const Route = createFileRoute("/_app/modules")({
   head: () => ({
     meta: [
       { title: "Module marketplace — Lumen English" },
-      { name: "description", content: "Browse every English learning module and pick the ones you need." },
+      {
+        name: "description",
+        content: "Browse every English learning module and pick the ones you need.",
+      },
       { property: "og:title", content: "Module marketplace — Lumen English" },
-      { property: "og:description", content: "Browse every English learning module and pick the ones you need." },
+      {
+        property: "og:description",
+        content: "Browse every English learning module and pick the ones you need.",
+      },
     ],
   }),
   component: ModulesPage,
@@ -39,11 +45,7 @@ function ModulesPage() {
     const q = query.trim().toLowerCase();
     return MODULES.filter((m) => {
       if (category !== "all" && m.category !== category) return false;
-      if (
-        difficulty !== "all" &&
-        m.difficulty !== difficulty &&
-        m.difficulty !== "all_levels"
-      )
+      if (difficulty !== "all" && m.difficulty !== difficulty && m.difficulty !== "all_levels")
         return false;
       if (!q) return true;
       return (
@@ -89,6 +91,12 @@ function ModulesPage() {
         }}
         onOpenModule={(id) => {
           markModuleOpened(id);
+
+          if (id === "speaking") {
+            void navigate({ to: "/speaking" });
+            return;
+          }
+
           void navigate({ to: "/my-learning" });
         }}
         onRenew={(id) => {
@@ -100,7 +108,9 @@ function ModulesPage() {
 
       <ModulePreview
         module={activeModule}
-        userModule={activeModule ? userModules.find((u) => u.module_id === activeModule.id) : undefined}
+        userModule={
+          activeModule ? userModules.find((u) => u.module_id === activeModule.id) : undefined
+        }
         open={!!activeModule}
         onOpenChange={(o) => !o && setPreviewId(null)}
         onSubscribe={(id) => {
@@ -109,6 +119,13 @@ function ModulesPage() {
         }}
         onOpen={(id) => {
           markModuleOpened(id);
+
+          if (id === "speaking") {
+            setPreviewId(null);
+            void navigate({ to: "/speaking" });
+            return;
+          }
+
           void navigate({ to: "/my-learning" });
         }}
         onRenew={(id) => {
