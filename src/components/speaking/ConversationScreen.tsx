@@ -1,5 +1,6 @@
 import {
   AlertCircle,
+  BookOpenCheck,
   CheckCircle2,
   Loader2,
   MessageCircle,
@@ -15,13 +16,30 @@ import {
   XCircle,
 } from "lucide-react";
 import { generateSpeakingMessageSpeechServerFn } from "@/lib/speaking/tts-functions";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useAudioPreviewUrl } from "@/hooks/useAudioPreviewUrl";
 import { formatAudioDuration } from "@/lib/speaking/audio-format";
 import { createTranscriptionFormData } from "@/lib/speaking/create-transcription-form-data";
 import { transcribeSpeakingAudioServerFn } from "@/lib/speaking/transcription-functions";
 import { validateAudioRecording } from "@/lib/speaking/audio-validation";
+
+import {
+  evaluateSpeakingGrammarServerFn,
+  type GrammarFeedbackServerResult,
+} from "@/lib/speaking/grammar-feedback-functions";
+
+import {
+  evaluateSpeakingVocabularyServerFn,
+  type VocabularyFeedbackServerResult,
+} from "@/lib/speaking/vocabulary-feedback-functions";
+
+import {
+  evaluateSpeakingFluencyServerFn,
+  type FluencyFeedbackServerResult,
+} from "@/lib/speaking/fluency-feedback-functions";
+
+import { getSpeakingPronunciationCapabilitiesServerFn } from "@/lib/speaking/pronunciation-feedback-functions";
 
 import { useMicrophonePermission } from "@/hooks/useMicrophonePermission";
 import { generateSpeakingCoachReplyServerFn } from "@/lib/speaking/conversation-functions";
@@ -58,6 +76,35 @@ type SpeechPlaybackStatus = "idle" | "loading" | "playing" | "paused" | "ended" 
 type SpeechPlaybackError = {
   message: string;
   retryable: boolean;
+};
+
+type GrammarFeedback = Extract<GrammarFeedbackServerResult, { ok: true }>["feedback"];
+
+type VocabularyFeedback = Extract<VocabularyFeedbackServerResult, { ok: true }>["feedback"];
+
+type FluencyFeedback = Extract<FluencyFeedbackServerResult, { ok: true }>["feedback"];
+
+type PronunciationCapability = Awaited<
+  ReturnType<typeof getSpeakingPronunciationCapabilitiesServerFn>
+>;
+
+type SpeakingFeedback = {
+  grammar: GrammarFeedback | null;
+  vocabulary: VocabularyFeedback | null;
+  fluency: FluencyFeedback | null;
+  pronunciation: PronunciationCapability | null;
+};
+
+type SpeakingFeedbackError = {
+  message: string;
+  retryable: boolean;
+};
+
+type SpeakingFeedbackState = {
+  messageId: string | null;
+  loading: boolean;
+  feedback: SpeakingFeedback | null;
+  error: SpeakingFeedbackError | null;
 };
 
 function classifyError(error: unknown): OperationError {
@@ -147,6 +194,26 @@ function createAudioObjectUrl(audioBase64: string, contentType: string): string 
   return URL.createObjectURL(blob);
 }
 
+function FeedbackScore({ label, score }: { label: string; score: number }) {
+  return (
+    <div className="rounded-lg border bg-background p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+
+      <p className="mt-1 text-xl font-semibold">{score}/100</p>
+    </div>
+  );
+}
+
+function FeedbackSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-2">
+      <h4 className="text-sm font-semibold">{title}</h4>
+
+      {children}
+    </section>
+  );
+}
+
 export function ConversationScreen() {
   const { session: authSession } = useAuth();
 
@@ -176,6 +243,13 @@ export function ConversationScreen() {
   const [speechPlaybackError, setSpeechPlaybackError] = useState<SpeechPlaybackError | null>(null);
 
   const [status, setStatus] = useState<ScreenStatus>("booting");
+
+  const [feedbackState, setFeedbackState] = useState<SpeakingFeedbackState>({
+    messageId: null,
+    loading: false,
+    feedback: null,
+    error: null,
+  });
 
   const [operationError, setOperationError] = useState<OperationError | null>(null);
 
@@ -241,6 +315,13 @@ export function ConversationScreen() {
     setStatus("booting");
     setOperationError(null);
 
+    setFeedbackState({
+      messageId: null,
+      loading: false,
+      feedback: null,
+      error: null,
+    });
+
     try {
       let activeSession = await getActiveSpeakingSessionServerFn({
         data: {
@@ -273,6 +354,13 @@ export function ConversationScreen() {
 
     setStatus("recovering");
     setOperationError(null);
+
+    setFeedbackState({
+      messageId: null,
+      loading: false,
+      feedback: null,
+      error: null,
+    });
 
     try {
       let recoveredSession: SpeakingSession | null = null;
@@ -353,6 +441,115 @@ export function ConversationScreen() {
       block: "nearest",
     });
   }, [messages]);
+
+  async function handleSpeakingFeedback(messageId: string) {
+    if (!userId || !speakingSession) {
+      return;
+    }
+
+    if (feedbackState.loading) {
+      return;
+    }
+
+    if (feedbackState.messageId === messageId && feedbackState.feedback) {
+      setFeedbackState({
+        messageId: null,
+        loading: false,
+        feedback: null,
+        error: null,
+      });
+
+      return;
+    }
+
+    setFeedbackState({
+      messageId,
+      loading: true,
+      feedback: null,
+      error: null,
+    });
+
+    const input = {
+      userId,
+      sessionId: speakingSession.id,
+      messageId,
+    };
+
+    try {
+      const [grammarResult, vocabularyResult, fluencyResult, pronunciation] = await Promise.all([
+        evaluateSpeakingGrammarServerFn({
+          data: input,
+        }),
+
+        evaluateSpeakingVocabularyServerFn({
+          data: input,
+        }),
+
+        evaluateSpeakingFluencyServerFn({
+          data: input,
+        }),
+
+        getSpeakingPronunciationCapabilitiesServerFn(),
+      ]);
+
+      const failures = [grammarResult, vocabularyResult, fluencyResult].filter(
+        (result) => !result.ok,
+      );
+
+      if (failures.length > 0) {
+        const firstFailure = failures[0];
+
+        if (!firstFailure || firstFailure.ok) {
+          throw new Error("Speaking feedback could not be generated.");
+        }
+
+        setFeedbackState({
+          messageId,
+          loading: false,
+          feedback: null,
+          error: {
+            message: firstFailure.error.message,
+            retryable: firstFailure.error.retryable,
+          },
+        });
+
+        return;
+      }
+
+      if (!grammarResult.ok || !vocabularyResult.ok || !fluencyResult.ok) {
+        throw new Error("Speaking feedback could not be generated.");
+      }
+
+      setFeedbackState({
+        messageId,
+        loading: false,
+
+        feedback: {
+          grammar: grammarResult.feedback,
+          vocabulary: vocabularyResult.feedback,
+          fluency: fluencyResult.feedback,
+          pronunciation,
+        },
+
+        error: null,
+      });
+    } catch (error) {
+      console.error("[Speaking Feedback] Request failed", {
+        messageId,
+        error,
+      });
+
+      setFeedbackState({
+        messageId,
+        loading: false,
+        feedback: null,
+        error: {
+          message: "Speaking feedback could not be generated right now.",
+          retryable: true,
+        },
+      });
+    }
+  }
 
   async function generateAiReply(): Promise<boolean> {
     if (!userId || !speakingSession || speakingSession.status !== "active" || isGeneratingReply) {
@@ -1446,96 +1643,368 @@ export function ConversationScreen() {
                     <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">
                       {message.content}
                     </p>
-
-                    {!isUser ? (
-                      <div className="mt-3 border-t border-border/50 pt-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {speechMessageId === message.id && speechPlaybackStatus === "loading" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled
-                              aria-label="Preparing AI Coach voice"
-                            >
-                              <Loader2 className="animate-spin" aria-hidden="true" />
-                              Preparing voice
-                            </Button>
-                          ) : speechMessageId === message.id &&
-                            speechPlaybackStatus === "playing" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                handlePauseSpeech(message.id);
-                              }}
-                              aria-label="Pause AI Coach voice"
-                            >
-                              <Pause aria-hidden="true" />
-                              Pause
-                            </Button>
-                          ) : speechMessageId === message.id &&
-                            speechPlaybackStatus === "paused" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                void handlePlaySpeech(message.id);
-                              }}
-                              aria-label="Resume AI Coach voice"
-                            >
-                              <Play aria-hidden="true" />
-                              Resume
-                            </Button>
-                          ) : speechMessageId === message.id && speechPlaybackStatus === "ended" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                void handlePlaySpeech(message.id);
-                              }}
-                              aria-label="Replay AI Coach voice"
-                            >
-                              <RotateCcw aria-hidden="true" />
-                              Replay
-                            </Button>
+                    {isUser ? (
+                      <div className="mt-3 border-t border-primary-foreground/20 pt-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-current hover:text-current"
+                          disabled={feedbackState.loading}
+                          onClick={() => {
+                            void handleSpeakingFeedback(message.id);
+                          }}
+                          aria-expanded={feedbackState.messageId === message.id}
+                          aria-controls={`speaking-feedback-${message.id}`}
+                        >
+                          {feedbackState.messageId === message.id && feedbackState.loading ? (
+                            <Loader2 className="animate-spin" aria-hidden="true" />
                           ) : (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                void handlePlaySpeech(message.id);
-                              }}
-                              aria-label="Play AI Coach voice"
-                            >
-                              <Volume2 aria-hidden="true" />
-                              Play
-                            </Button>
+                            <BookOpenCheck aria-hidden="true" />
                           )}
-                        </div>
 
-                        {speechMessageId === message.id && speechPlaybackError ? (
-                          <div className="mt-2 text-xs" role="alert">
-                            <p className="text-destructive">{speechPlaybackError.message}</p>
+                          {feedbackState.messageId === message.id && feedbackState.loading
+                            ? "Analyzing..."
+                            : feedbackState.messageId === message.id && feedbackState.feedback
+                              ? "Hide feedback"
+                              : "Feedback"}
+                        </Button>
+                      </div>
+                    ) : null}
 
-                            {speechPlaybackStatus === "error" && speechPlaybackError.retryable ? (
+                    {isUser && feedbackState.messageId === message.id ? (
+                      <div
+                        id={`speaking-feedback-${message.id}`}
+                        className="mt-3"
+                        aria-live="polite"
+                      >
+                        {feedbackState.loading ? (
+                          <div
+                            className="flex items-center gap-2 rounded-lg border border-primary-foreground/20 p-3 text-sm"
+                            role="status"
+                          >
+                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+
+                            <span>Analyzing your English...</span>
+                          </div>
+                        ) : null}
+
+                        {feedbackState.error ? (
+                          <div
+                            className="rounded-lg border border-destructive/30 bg-background p-3 text-foreground"
+                            role="alert"
+                          >
+                            <p className="text-sm font-medium text-destructive">
+                              Feedback unavailable
+                            </p>
+
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {feedbackState.error.message}
+                            </p>
+
+                            {feedbackState.error.retryable ? (
                               <Button
                                 type="button"
                                 size="sm"
-                                variant="ghost"
-                                className="mt-1 h-auto px-2 py-1 text-xs"
+                                variant="outline"
+                                className="mt-3"
                                 onClick={() => {
-                                  handleRetrySpeech(message.id);
+                                  void handleSpeakingFeedback(message.id);
                                 }}
                               >
                                 <RefreshCw aria-hidden="true" />
-                                Retry voice
+                                Try again
                               </Button>
                             ) : null}
+                          </div>
+                        ) : null}
+
+                        {feedbackState.feedback ? (
+                          <div className="space-y-5 rounded-xl border bg-background p-4 text-foreground shadow-sm">
+                            <div>
+                              <h3 className="font-semibold">Speaking feedback</h3>
+
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Feedback is based on this learner message.
+                              </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                              <FeedbackScore
+                                label="Grammar"
+                                score={feedbackState.feedback.grammar?.score ?? 0}
+                              />
+
+                              <FeedbackScore
+                                label="Vocabulary"
+                                score={feedbackState.feedback.vocabulary?.score ?? 0}
+                              />
+
+                              <FeedbackScore
+                                label="Fluency"
+                                score={feedbackState.feedback.fluency?.score ?? 0}
+                              />
+                            </div>
+
+                            {feedbackState.feedback.grammar ? (
+                              <FeedbackSection title="Grammar">
+                                <p className="text-sm text-muted-foreground">
+                                  {feedbackState.feedback.grammar.summary}
+                                </p>
+
+                                {!feedbackState.feedback.grammar.isCorrect ? (
+                                  <div className="rounded-lg bg-muted p-3">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                      Corrected version
+                                    </p>
+
+                                    <p className="mt-1 text-sm">
+                                      {feedbackState.feedback.grammar.correctedText}
+                                    </p>
+                                  </div>
+                                ) : null}
+
+                                {feedbackState.feedback.grammar.issues.length > 0 ? (
+                                  <ul className="space-y-2">
+                                    {feedbackState.feedback.grammar.issues.map((issue, index) => (
+                                      <li
+                                        key={`${issue.category}-${index}`}
+                                        className="rounded-lg border p-3 text-sm"
+                                      >
+                                        <p className="font-medium">
+                                          {issue.original} → {issue.correction}
+                                        </p>
+
+                                        <p className="mt-1 text-muted-foreground">
+                                          {issue.explanation}
+                                        </p>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    No meaningful grammar problems were found.
+                                  </p>
+                                )}
+                              </FeedbackSection>
+                            ) : null}
+
+                            {feedbackState.feedback.vocabulary ? (
+                              <FeedbackSection title="Vocabulary">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
+                                    {feedbackState.feedback.vocabulary.range}
+                                  </span>
+
+                                  {feedbackState.feedback.vocabulary.isAppropriate ? (
+                                    <span className="text-xs text-muted-foreground">
+                                      Appropriate word choice
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                <p className="text-sm text-muted-foreground">
+                                  {feedbackState.feedback.vocabulary.summary}
+                                </p>
+
+                                {feedbackState.feedback.vocabulary.strengths.length > 0 ? (
+                                  <div>
+                                    <p className="text-xs font-medium">Strengths</p>
+
+                                    <ul className="mt-2 space-y-2">
+                                      {feedbackState.feedback.vocabulary.strengths.map(
+                                        (strength, index) => (
+                                          <li
+                                            key={`${strength.expression}-${index}`}
+                                            className="rounded-lg bg-muted p-3 text-sm"
+                                          >
+                                            <p className="font-medium">{strength.expression}</p>
+
+                                            <p className="mt-1 text-muted-foreground">
+                                              {strength.explanation}
+                                            </p>
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                ) : null}
+
+                                {feedbackState.feedback.vocabulary.issues.length > 0 ? (
+                                  <ul className="space-y-2">
+                                    {feedbackState.feedback.vocabulary.issues.map(
+                                      (issue, index) => (
+                                        <li
+                                          key={`${issue.category}-${index}`}
+                                          className="rounded-lg border p-3 text-sm"
+                                        >
+                                          <p className="font-medium">
+                                            {issue.original} → {issue.suggestion}
+                                          </p>
+
+                                          <p className="mt-1 text-muted-foreground">
+                                            {issue.explanation}
+                                          </p>
+                                        </li>
+                                      ),
+                                    )}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    No meaningful vocabulary problems were found.
+                                  </p>
+                                )}
+
+                                <div className="rounded-lg bg-muted p-3">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Vocabulary suggestion
+                                  </p>
+
+                                  <p className="mt-1 text-sm">
+                                    {feedbackState.feedback.vocabulary.suggestedText}
+                                  </p>
+                                </div>
+                              </FeedbackSection>
+                            ) : null}
+
+                            {feedbackState.feedback.fluency ? (
+                              <FeedbackSection title="Fluency">
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium capitalize">
+                                    {feedbackState.feedback.fluency.level}
+                                  </span>
+
+                                  <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                                    Transcript-based
+                                  </span>
+                                </div>
+
+                                <p className="text-sm text-muted-foreground">
+                                  {feedbackState.feedback.fluency.summary}
+                                </p>
+
+                                {feedbackState.feedback.fluency.strengths.length > 0 ? (
+                                  <div>
+                                    <p className="text-xs font-medium">Strengths</p>
+
+                                    <ul className="mt-2 space-y-2">
+                                      {feedbackState.feedback.fluency.strengths.map(
+                                        (strength, index) => (
+                                          <li
+                                            key={`${strength.evidence}-${index}`}
+                                            className="rounded-lg bg-muted p-3 text-sm"
+                                          >
+                                            <p className="font-medium">{strength.evidence}</p>
+
+                                            <p className="mt-1 text-muted-foreground">
+                                              {strength.explanation}
+                                            </p>
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                ) : null}
+
+                                {feedbackState.feedback.fluency.issues.length > 0 ? (
+                                  <ul className="space-y-2">
+                                    {feedbackState.feedback.fluency.issues.map((issue, index) => (
+                                      <li
+                                        key={`${issue.category}-${index}`}
+                                        className="rounded-lg border p-3 text-sm"
+                                      >
+                                        <p className="font-medium capitalize">
+                                          {issue.category.replaceAll("_", " ")}
+                                        </p>
+
+                                        <p className="mt-1 text-muted-foreground">
+                                          {issue.explanation}
+                                        </p>
+
+                                        <p className="mt-2 text-sm">
+                                          <span className="font-medium">Try: </span>
+                                          {issue.suggestion}
+                                        </p>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    No meaningful transcript-visible fluency problems were found.
+                                  </p>
+                                )}
+
+                                <div className="rounded-lg bg-muted p-3">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    Practice next
+                                  </p>
+
+                                  <p className="mt-1 text-sm">
+                                    {feedbackState.feedback.fluency.improvementTip}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                                  <div className="rounded-lg border p-2">
+                                    <p className="text-muted-foreground">Words</p>
+                                    <p className="mt-1 font-medium">
+                                      {feedbackState.feedback.fluency.metrics.wordCount}
+                                    </p>
+                                  </div>
+
+                                  <div className="rounded-lg border p-2">
+                                    <p className="text-muted-foreground">Unique</p>
+                                    <p className="mt-1 font-medium">
+                                      {feedbackState.feedback.fluency.metrics.uniqueWordCount}
+                                    </p>
+                                  </div>
+
+                                  <div className="rounded-lg border p-2">
+                                    <p className="text-muted-foreground">Visible fillers</p>
+                                    <p className="mt-1 font-medium">
+                                      {feedbackState.feedback.fluency.metrics.visibleFillerCount}
+                                    </p>
+                                  </div>
+
+                                  <div className="rounded-lg border p-2">
+                                    <p className="text-muted-foreground">Repetition</p>
+                                    <p className="mt-1 font-medium">
+                                      {Math.round(
+                                        feedbackState.feedback.fluency.metrics
+                                          .lexicalRepetitionRatio * 100,
+                                      )}
+                                      %
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <p className="text-xs text-muted-foreground">
+                                  Fluency is currently estimated from transcript-visible patterns.
+                                  Speaking speed, pauses, rhythm, and hesitation timing are not
+                                  included.
+                                </p>
+                              </FeedbackSection>
+                            ) : null}
+
+                            <FeedbackSection title="Pronunciation">
+                              {feedbackState.feedback.pronunciation?.available ? (
+                                <p className="text-sm text-muted-foreground">
+                                  Audio pronunciation assessment is available.
+                                </p>
+                              ) : (
+                                <div className="rounded-lg border border-dashed p-3">
+                                  <p className="text-sm font-medium">
+                                    Pronunciation scoring is not available yet.
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Fluent Path will only score pronunciation when an audio-based
+                                    pronunciation assessment provider is available. Your transcript
+                                    alone is not used to guess pronunciation quality.
+                                  </p>
+                                </div>
+                              )}
+                            </FeedbackSection>
                           </div>
                         ) : null}
                       </div>
