@@ -6,6 +6,12 @@ export type SpeakingScenarioContext = {
   coachRole?: string | null;
   objective?: string | null;
   setting?: string | null;
+
+  adaptation?: {
+    mode: "simplify" | "standard" | "challenge" | "neutral";
+
+    instructions: string[];
+  } | null;
 };
 
 export type ResolvedSpeakingScenarioContext =
@@ -18,6 +24,7 @@ export type ResolvedSpeakingScenarioContext =
     };
 
 const MAX_CONTEXT_FIELD_LENGTH = 1_000;
+const MAX_ADAPTATION_INSTRUCTIONS = 8;
 
 function normalizeOptionalField(value: string | null | undefined): string | null {
   if (!value) {
@@ -31,6 +38,35 @@ function normalizeOptionalField(value: string | null | undefined): string | null
   }
 
   return normalized.slice(0, MAX_CONTEXT_FIELD_LENGTH);
+}
+
+function normalizeAdaptation(
+  adaptation: SpeakingScenarioContext["adaptation"] | undefined,
+): SpeakingScenarioContext["adaptation"] {
+  if (!adaptation) {
+    return null;
+  }
+
+  const validModes = new Set(["simplify", "standard", "challenge", "neutral"]);
+
+  if (!validModes.has(adaptation.mode)) {
+    return null;
+  }
+
+  const instructions = adaptation.instructions
+    .map((instruction) => normalizeOptionalField(instruction))
+    .filter((instruction): instruction is string => Boolean(instruction))
+    .slice(0, MAX_ADAPTATION_INSTRUCTIONS);
+
+  if (instructions.length === 0) {
+    return null;
+  }
+
+  return {
+    mode: adaptation.mode,
+
+    instructions,
+  };
 }
 
 export function normalizeSpeakingScenarioContext(
@@ -64,6 +100,7 @@ export function normalizeSpeakingScenarioContext(
       coachRole: normalizeOptionalField(scenario.coachRole),
       objective: normalizeOptionalField(scenario.objective),
       setting: normalizeOptionalField(scenario.setting),
+      adaptation: normalizeAdaptation(scenario.adaptation),
     },
   };
 }
@@ -106,6 +143,15 @@ Behavior:
 
   if (scenario.objective) {
     lines.push("", "Practice objective:", scenario.objective);
+  }
+
+  if (scenario.adaptation) {
+    lines.push(
+      "",
+      "Scenario difficulty adaptation:",
+      `Mode: ${scenario.adaptation.mode}`,
+      ...scenario.adaptation.instructions.map((instruction) => `- ${instruction}`),
+    );
   }
 
   lines.push(
