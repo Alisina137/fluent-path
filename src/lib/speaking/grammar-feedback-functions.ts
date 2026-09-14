@@ -161,11 +161,39 @@ export const evaluateSpeakingGrammarServerFn = createServerFn({
         };
       }
 
+      const persistenceModule = await import("@/server/speaking/feedback/persistence");
+
+      const persisted = await persistenceModule.getPersistedSpeakingFeedback(
+        data.userId,
+        data.sessionId,
+        data.messageId,
+        "grammar",
+      );
+
+      if (persisted) {
+        return {
+          ok: true,
+          feedback: persisted.evaluation as GrammarFeedbackSuccess["feedback"],
+        };
+      }
+
       const result = await grammarModule.evaluateSpeakingGrammar(message.content);
+
+      const stored = await persistenceModule.persistSpeakingFeedback({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "grammar",
+        score: result.evaluation.score,
+        evaluation: result.evaluation,
+        provider: result.provider,
+        model: result.model,
+        providerRequestId: result.providerRequestId,
+      });
 
       return {
         ok: true,
-        feedback: result.evaluation,
+        feedback: stored.evaluation as GrammarFeedbackSuccess["feedback"],
       };
     } catch (error) {
       if (isGrammarEvaluationError(error)) {

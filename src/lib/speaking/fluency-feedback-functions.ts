@@ -189,12 +189,41 @@ export const evaluateSpeakingFluencyServerFn = createServerFn({
         };
       }
 
+      const persistenceModule = await import("@/server/speaking/feedback/persistence");
+
+      const persisted = await persistenceModule.getPersistedSpeakingFeedback(
+        data.userId,
+        data.sessionId,
+        data.messageId,
+        "fluency",
+      );
+
+      if (persisted) {
+        return {
+          ok: true,
+
+          feedback: persisted.evaluation as FluencyFeedbackSuccess["feedback"],
+        };
+      }
+
       const result = await fluencyModule.evaluateSpeakingFluency(message.content);
+
+      const stored = await persistenceModule.persistSpeakingFeedback({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "fluency",
+        score: result.evaluation.score,
+        evaluation: result.evaluation,
+        provider: result.provider,
+        model: result.model,
+        providerRequestId: result.providerRequestId,
+      });
 
       return {
         ok: true,
 
-        feedback: result.evaluation,
+        feedback: stored.evaluation as FluencyFeedbackSuccess["feedback"],
       };
     } catch (error) {
       if (isFluencyEvaluationError(error)) {

@@ -186,12 +186,41 @@ export const evaluateSpeakingVocabularyServerFn = createServerFn({
         };
       }
 
+      const persistenceModule = await import("@/server/speaking/feedback/persistence");
+
+      const persisted = await persistenceModule.getPersistedSpeakingFeedback(
+        data.userId,
+        data.sessionId,
+        data.messageId,
+        "vocabulary",
+      );
+
+      if (persisted) {
+        return {
+          ok: true,
+
+          feedback: persisted.evaluation as VocabularyFeedbackSuccess["feedback"],
+        };
+      }
+
       const result = await vocabularyModule.evaluateSpeakingVocabulary(message.content);
+
+      const stored = await persistenceModule.persistSpeakingFeedback({
+        userId: data.userId,
+        sessionId: data.sessionId,
+        messageId: data.messageId,
+        skill: "vocabulary",
+        score: result.evaluation.score,
+        evaluation: result.evaluation,
+        provider: result.provider,
+        model: result.model,
+        providerRequestId: result.providerRequestId,
+      });
 
       return {
         ok: true,
 
-        feedback: result.evaluation,
+        feedback: stored.evaluation as VocabularyFeedbackSuccess["feedback"],
       };
     } catch (error) {
       if (isVocabularyEvaluationError(error)) {

@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { modules } from "./modules";
 import { users } from "./users";
@@ -121,3 +130,59 @@ export type NewSpeakingMessageRow = typeof speakingMessages.$inferInsert;
 
 export type SpeakingSessionRow = typeof speakingSessions.$inferSelect;
 export type NewSpeakingSessionRow = typeof speakingSessions.$inferInsert;
+
+export const speakingFeedbackSkills = ["grammar", "vocabulary", "fluency"] as const;
+
+export type SpeakingFeedbackSkill = (typeof speakingFeedbackSkills)[number];
+
+export const speakingFeedbackEvaluations = pgTable(
+  "speaking_feedback_evaluations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => speakingMessages.id, {
+        onDelete: "cascade",
+      }),
+
+    skill: text("skill", {
+      enum: speakingFeedbackSkills,
+    }).notNull(),
+
+    score: integer("score").notNull(),
+
+    evaluation: jsonb("evaluation").notNull(),
+
+    provider: text("provider").notNull(),
+
+    model: text("model").notNull(),
+
+    providerRequestId: text("provider_request_id"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("speaking_feedback_message_skill_uidx").on(table.messageId, table.skill),
+
+    index("speaking_feedback_message_idx").on(table.messageId),
+
+    index("speaking_feedback_skill_created_at_idx").on(table.skill, table.createdAt),
+  ],
+);
+
+export type SpeakingFeedbackEvaluationRow = typeof speakingFeedbackEvaluations.$inferSelect;
+
+export type NewSpeakingFeedbackEvaluationRow = typeof speakingFeedbackEvaluations.$inferInsert;
