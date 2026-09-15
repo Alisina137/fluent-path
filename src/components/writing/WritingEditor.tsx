@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { AlertCircle, Check, CheckCircle2, Clock3, Loader2, Save, XCircle } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
+import { WritingFeedback } from "@/components/writing/WritingFeedback";
+
+import { requestWritingFeedbackServerFn } from "@/lib/writing/evaluation-functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getWritingTextStatistics } from "@/lib/writing/text-statistics";
@@ -77,6 +81,14 @@ export function WritingEditor({
     }
   }
 
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+
+  const [writingFeedback, setWritingFeedback] = useState<Awaited<
+    ReturnType<typeof requestWritingFeedbackServerFn>
+  > | null>(null);
+
   const { wordCount: liveWordCount, characterCount: liveCharacterCount } =
     getWritingTextStatistics(content);
   const minimumWords = taskSnapshot.minWords;
@@ -90,6 +102,40 @@ export function WritingEditor({
 
   const wordGoalProgress =
     minimumWords && minimumWords > 0 ? Math.min((liveWordCount / minimumWords) * 100, 100) : null;
+
+  async function handleRequestFeedback(): Promise<void> {
+    if (sessionClosed || isEvaluating || isClosing) {
+      return;
+    }
+
+    setIsEvaluating(true);
+    setEvaluationError(null);
+
+    try {
+      const saved = await saveNow();
+
+      if (!saved) {
+        setEvaluationError(
+          "Your latest changes could not be saved. Please save your writing before requesting feedback.",
+        );
+
+        return;
+      }
+
+      const result = await requestWritingFeedbackServerFn({
+        data: {
+          userId,
+          sessionId,
+        },
+      });
+
+      setWritingFeedback(result);
+    } catch {
+      setEvaluationError("Your writing could not be evaluated right now. Please try again.");
+    } finally {
+      setIsEvaluating(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -418,9 +464,43 @@ export function WritingEditor({
                 )}
                 Complete
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={
+                  sessionClosed || isEvaluating || isClosing || isLoading || !content.trim()
+                }
+                onClick={() => {
+                  void handleRequestFeedback();
+                }}
+              >
+                {isEvaluating ? (
+                  <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles aria-hidden="true" />
+                )}
+
+                {isEvaluating ? "Evaluating..." : "Get AI feedback"}
+              </Button>
             </div>
           ) : null}
         </div>
+
+        {evaluationError ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            {evaluationError}
+          </div>
+        ) : null}
+
+        {writingFeedback ? (
+          <WritingFeedback
+            overall={writingFeedback.overall}
+            explanations={writingFeedback.explanations}
+          />
+        ) : null}
       </div>
     </section>
   );
