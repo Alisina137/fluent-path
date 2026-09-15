@@ -112,7 +112,21 @@ export const writingSessions = pgTable(
      * The concrete validated TypeScript structure will live
      * outside the database schema.
      */
-    taskSnapshot: jsonb("task_snapshot").notNull(),
+    taskSnapshot: jsonb("task_snapshot")
+      .$type<{
+        source: "task" | "custom";
+        title: string | null;
+        prompt: string | null;
+        category: string | null;
+        writingType: string;
+        cefrLevel: string;
+        minWords: number | null;
+        maxWords: number | null;
+        audience: string | null;
+        purpose: string | null;
+        tone: string | null;
+      }>()
+      .notNull(),
 
     startedAt: timestamp("started_at", {
       withTimezone: true,
