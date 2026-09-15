@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth/context";
 import { MODULES } from "@/lib/modules/registry";
 import { MyModuleCard } from "@/components/modules/MyModuleCard";
@@ -9,9 +9,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_app/my-learning")({
   head: () => ({
     meta: [
-      { title: "My Learning — Lumen English" },
+      { title: "My Learning — Fluent Path" },
       { name: "description", content: "Your active modules and continue-learning items." },
-      { property: "og:title", content: "My Learning — Lumen English" },
+      { property: "og:title", content: "My Learning — Fluent Path" },
       { property: "og:description", content: "Your active modules and continue-learning items." },
     ],
   }),
@@ -19,11 +19,13 @@ export const Route = createFileRoute("/_app/my-learning")({
 });
 
 function MyLearning() {
+  const navigate = useNavigate();
   const { session, markModuleOpened } = useAuth();
   const userModules = session?.modules ?? [];
-  const owned = MODULES
-    .filter((m) => isSubscribed(findUserModule(userModules, m.id)))
-    .map((m) => ({ module: m, userModule: findUserModule(userModules, m.id)! }));
+  const owned = MODULES.filter((m) => isSubscribed(findUserModule(userModules, m.id))).map((m) => ({
+    module: m,
+    userModule: findUserModule(userModules, m.id)!,
+  }));
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -47,7 +49,18 @@ function MyLearning() {
               userModule={userModule}
               onOpen={(id) => {
                 markModuleOpened(id);
-                toast.success(`${module.name} lesson content ships soon.`);
+
+                if (id === "speaking") {
+                  void navigate({ to: "/speaking" });
+                  return;
+                }
+
+                if (id === "writing") {
+                  void navigate({ to: "/writing" });
+                  return;
+                }
+
+                toast.info(`${module.name} lesson content is not available yet.`);
               }}
             />
           ))}
