@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { createWritingRevision } from "@/server/writing/revisions";
+import { createOrReuseWritingRevision } from "@/server/writing/revisions";
 
 import { evaluateWritingRevision } from "@/server/writing/evaluation/service";
 
@@ -25,10 +25,11 @@ const requestWritingFeedbackInputSchema = z.object({
 export const requestWritingFeedbackServerFn = createServerFn({ method: "POST" })
   .validator(requestWritingFeedbackInputSchema)
   .handler(async ({ data }) => {
-    const revision = await createWritingRevision(data.userId, data.sessionId);
+    const revisionResult = await createOrReuseWritingRevision(data.userId, data.sessionId);
+
+    const revision = revisionResult.revision;
 
     const storedOrResult = await evaluateWritingRevision(data.userId, revision.id);
-
     const evaluation = normalizeEvaluationResult(storedOrResult, revision.content);
 
     const feedback = normalizeWritingFeedback(evaluation);
@@ -40,6 +41,7 @@ export const requestWritingFeedbackServerFn = createServerFn({ method: "POST" })
         content: revision.content,
         wordCount: revision.wordCount,
         characterCount: revision.characterCount,
+        created: revisionResult.created,
       },
 
       evaluation,

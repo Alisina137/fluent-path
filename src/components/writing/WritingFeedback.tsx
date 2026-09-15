@@ -1,17 +1,40 @@
-import { AlertTriangle, CheckCircle2, Lightbulb, Target } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, CheckCircle2, Lightbulb, Loader2, Sparkles, Target } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WritingRewriteSuggestion } from "@/components/writing/WritingRewriteSuggestion";
+import { requestWritingRewriteServerFn } from "@/lib/writing/rewrite-functions";
 
 import type { WritingFeedbackExplanation } from "@/server/writing/feedback/explanations";
-
 import type { WritingOverallFeedback } from "@/server/writing/feedback/overall-feedback";
+import type { WritingRewriteSuggestion as WritingRewriteSuggestionResult } from "@/server/writing/rewrite/types";
 
-interface WritingFeedbackProps {
-  overall: WritingOverallFeedback;
-  explanations: WritingFeedbackExplanation[];
+export interface WritingSuggestionApplyResult {
+  applied: boolean;
+  message: string;
 }
 
-export function WritingFeedback({ overall, explanations }: WritingFeedbackProps) {
+interface WritingFeedbackProps {
+  userId: string;
+  revisionId: string;
+  overall: WritingOverallFeedback;
+  explanations: WritingFeedbackExplanation[];
+  canApplySuggestions: boolean;
+  onApplySuggestion: (
+    originalText: string,
+    replacementText: string,
+  ) => WritingSuggestionApplyResult;
+}
+
+export function WritingFeedback({
+  userId,
+  revisionId,
+  overall,
+  explanations,
+  canApplySuggestions,
+  onApplySuggestion,
+}: WritingFeedbackProps) {
   return (
     <section className="space-y-6" aria-labelledby="writing-feedback-heading">
       <Card>
@@ -132,47 +155,14 @@ export function WritingFeedback({ overall, explanations }: WritingFeedbackProps)
           <CardContent>
             <ul className="space-y-4">
               {explanations.map((item) => (
-                <li key={item.feedbackId} className="rounded-lg border p-4">
-                  <div className="flex flex-wrap gap-2">
-                    <span className="text-sm font-medium">{item.dimensionLabel}</span>
-
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {item.categoryLabel}
-                    </span>
-
-                    <span className="rounded-full border px-2 py-0.5 text-xs">
-                      {item.severityLabel}
-                    </span>
-                  </div>
-
-                  <h3 className="mt-3 font-medium">{item.title}</h3>
-
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.explanation}</p>
-
-                  {item.example ? (
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border p-3">
-                        <p className="text-xs font-medium text-muted-foreground">Your writing</p>
-
-                        <p className="mt-2 wrap-break-word text-sm">{item.example.before}</p>
-                      </div>
-
-                      <div className="rounded-lg border p-3">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Suggested correction
-                        </p>
-
-                        <p className="mt-2 wrap-break-word text-sm">{item.example.after}</p>
-                      </div>
-                    </div>
-                  ) : item.suggestion ? (
-                    <div className="mt-4 rounded-lg border p-3">
-                      <p className="text-xs font-medium text-muted-foreground">Suggestion</p>
-
-                      <p className="mt-2 wrap-break-word text-sm">{item.suggestion}</p>
-                    </div>
-                  ) : null}
-                </li>
+                <FeedbackItem
+                  key={item.feedbackId}
+                  userId={userId}
+                  revisionId={revisionId}
+                  item={item}
+                  canApplySuggestions={canApplySuggestions}
+                  onApplySuggestion={onApplySuggestion}
+                />
               ))}
             </ul>
           </CardContent>
@@ -210,6 +200,200 @@ export function WritingFeedback({ overall, explanations }: WritingFeedbackProps)
         </Card>
       ) : null}
     </section>
+  );
+}
+
+interface FeedbackItemProps {
+  userId: string;
+  revisionId: string;
+  item: WritingFeedbackExplanation;
+  canApplySuggestions: boolean;
+  onApplySuggestion: (
+    originalText: string,
+    replacementText: string,
+  ) => WritingSuggestionApplyResult;
+}
+
+function FeedbackItem({
+  userId,
+  revisionId,
+  item,
+  canApplySuggestions,
+  onApplySuggestion,
+}: FeedbackItemProps) {
+  const [isLoadingRewrite, setIsLoadingRewrite] = useState(false);
+
+  const [rewriteError, setRewriteError] = useState<string | null>(null);
+
+  const [rewriteSuggestion, setRewriteSuggestion] = useState<WritingRewriteSuggestionResult | null>(
+    null,
+  );
+
+  const [applyMessage, setApplyMessage] = useState<string | null>(null);
+
+  const [applyError, setApplyError] = useState<string | null>(null);
+
+  const canRequestRewrite = Boolean(item.example?.before.trim());
+
+  async function handleRequestRewrite(): Promise<void> {
+    if (!canRequestRewrite || isLoadingRewrite || rewriteSuggestion) {
+      return;
+    }
+
+    setIsLoadingRewrite(true);
+    setRewriteError(null);
+
+    try {
+      const result = await requestWritingRewriteServerFn({
+        data: {
+          userId,
+          revisionId,
+          feedbackId: item.feedbackId,
+        },
+      });
+
+      setRewriteSuggestion(result);
+    } catch {
+      setRewriteError("A rewrite suggestion could not be generated right now. Please try again.");
+    } finally {
+      setIsLoadingRewrite(false);
+    }
+  }
+
+  function handleApply(originalText: string, replacementText: string): void {
+    setApplyMessage(null);
+    setApplyError(null);
+
+    const result = onApplySuggestion(originalText, replacementText);
+
+    if (result.applied) {
+      setApplyMessage(result.message);
+      return;
+    }
+
+    setApplyError(result.message);
+  }
+
+  return (
+    <li className="rounded-lg border p-4">
+      <div className="flex flex-wrap gap-2">
+        <span className="text-sm font-medium">{item.dimensionLabel}</span>
+
+        <span className="rounded-full border px-2 py-0.5 text-xs">{item.categoryLabel}</span>
+
+        <span className="rounded-full border px-2 py-0.5 text-xs">{item.severityLabel}</span>
+      </div>
+
+      <h3 className="mt-3 font-medium">{item.title}</h3>
+
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.explanation}</p>
+
+      {item.example ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border p-3">
+            <p className="text-xs font-medium text-muted-foreground">Your writing</p>
+
+            <p className="mt-2 wrap-break-word text-sm">{item.example.before}</p>
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <p className="text-xs font-medium text-muted-foreground">Suggested correction</p>
+
+            <p className="mt-2 wrap-break-word text-sm">{item.example.after}</p>
+
+            {canApplySuggestions &&
+            item.example.after.trim() &&
+            item.example.after !== item.example.before ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                onClick={() => {
+                  handleApply(item.example!.before, item.example!.after);
+                }}
+              >
+                <CheckCircle2 aria-hidden="true" />
+                Apply correction
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : item.suggestion ? (
+        <div className="mt-4 rounded-lg border p-3">
+          <p className="text-xs font-medium text-muted-foreground">Suggestion</p>
+
+          <p className="mt-2 wrap-break-word text-sm">{item.suggestion}</p>
+        </div>
+      ) : null}
+
+      {canRequestRewrite ? (
+        <div className="mt-4">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isLoadingRewrite || rewriteSuggestion !== null}
+            onClick={() => {
+              void handleRequestRewrite();
+            }}
+          >
+            {isLoadingRewrite ? (
+              <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
+            ) : (
+              <Sparkles aria-hidden="true" />
+            )}
+
+            {isLoadingRewrite
+              ? "Generating..."
+              : rewriteSuggestion
+                ? "Suggestion generated"
+                : "Show rewrite suggestion"}
+          </Button>
+        </div>
+      ) : null}
+
+      {rewriteError ? (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {rewriteError}
+        </p>
+      ) : null}
+
+      {rewriteSuggestion && item.example ? (
+        <>
+          <WritingRewriteSuggestion
+            originalText={item.example.before}
+            suggestion={rewriteSuggestion}
+          />
+
+          {canApplySuggestions ? (
+            <Button
+              type="button"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                handleApply(item.example!.before, rewriteSuggestion.rewrittenText);
+              }}
+            >
+              <CheckCircle2 aria-hidden="true" />
+              Apply AI rewrite
+            </Button>
+          ) : null}
+        </>
+      ) : null}
+
+      {applyMessage ? (
+        <p className="mt-3 text-sm font-medium" role="status" aria-live="polite">
+          {applyMessage}
+        </p>
+      ) : null}
+
+      {applyError ? (
+        <p className="mt-3 text-sm text-destructive" role="alert">
+          {applyError}
+        </p>
+      ) : null}
+    </li>
   );
 }
 

@@ -1,12 +1,24 @@
 import { useState } from "react";
-import { AlertCircle, Check, CheckCircle2, Clock3, Loader2, Save, XCircle } from "lucide-react";
-import { Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  Check,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  Save,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
 
-import { WritingFeedback } from "@/components/writing/WritingFeedback";
-
-import { requestWritingFeedbackServerFn } from "@/lib/writing/evaluation-functions";
+import {
+  WritingFeedback,
+  type WritingSuggestionApplyResult,
+} from "@/components/writing/WritingFeedback";
+import { WritingRevisionComparison } from "@/components/writing/WritingRevisionComparison";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { requestWritingFeedbackServerFn } from "@/lib/writing/evaluation-functions";
+import { compareWritingRevisionsServerFn } from "@/lib/writing/revision-functions";
 import { getWritingTextStatistics } from "@/lib/writing/text-statistics";
 import { useWritingAutosave } from "@/lib/writing/use-writing-autosave";
 
@@ -56,10 +68,46 @@ export function WritingEditor({
       sessionStatus,
     });
 
-  const sessionClosed = sessionStatus !== "active";
   const [isPreparingClose, setIsPreparingClose] = useState(false);
 
+  const [isEvaluating, setIsEvaluating] = useState(false);
+
+  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+
+  const [writingFeedback, setWritingFeedback] = useState<Awaited<
+    ReturnType<typeof requestWritingFeedbackServerFn>
+  > | null>(null);
+
+  const [previousFeedback, setPreviousFeedback] = useState<typeof writingFeedback>(null);
+
+  const [hasChangesSinceFeedback, setHasChangesSinceFeedback] = useState(false);
+
+  const [revisionComparison, setRevisionComparison] = useState<Awaited<
+    ReturnType<typeof compareWritingRevisionsServerFn>
+  > | null>(null);
+
+  const [revisionComparisonError, setRevisionComparisonError] = useState<string | null>(null);
+
+  const [isComparing, setIsComparing] = useState(false);
+
+  const sessionClosed = sessionStatus !== "active";
+
   const interactionLocked = isClosing || isPreparingClose;
+
+  const { wordCount: liveWordCount, characterCount: liveCharacterCount } =
+    getWritingTextStatistics(content);
+
+  const minimumWords = taskSnapshot.minWords;
+  const maximumWords = taskSnapshot.maxWords;
+
+  const hasWordGoal = minimumWords !== null || maximumWords !== null;
+
+  const minimumReached = minimumWords === null || liveWordCount >= minimumWords;
+
+  const maximumExceeded = maximumWords !== null && liveWordCount > maximumWords;
+
+  const wordGoalProgress =
+    minimumWords && minimumWords > 0 ? Math.min((liveWordCount / minimumWords) * 100, 100) : null;
 
   async function handleCloseSession(action: () => Promise<void>): Promise<void> {
     if (sessionClosed || interactionLocked) {
@@ -81,27 +129,33 @@ export function WritingEditor({
     }
   }
 
-  const [isEvaluating, setIsEvaluating] = useState(false);
+  async function handleCompareRevisions(): Promise<void> {
+    if (!previousFeedback || !writingFeedback || isComparing) {
+      return;
+    }
 
-  const [evaluationError, setEvaluationError] = useState<string | null>(null);
+    setIsComparing(true);
+    setRevisionComparisonError(null);
 
-  const [writingFeedback, setWritingFeedback] = useState<Awaited<
-    ReturnType<typeof requestWritingFeedbackServerFn>
-  > | null>(null);
+    try {
+      const result = await compareWritingRevisionsServerFn({
+        data: {
+          userId,
+          sessionId,
+          beforeRevisionId: previousFeedback.revision.id,
+          afterRevisionId: writingFeedback.revision.id,
+        },
+      });
 
-  const { wordCount: liveWordCount, characterCount: liveCharacterCount } =
-    getWritingTextStatistics(content);
-  const minimumWords = taskSnapshot.minWords;
-  const maximumWords = taskSnapshot.maxWords;
-
-  const hasWordGoal = minimumWords !== null || maximumWords !== null;
-
-  const minimumReached = minimumWords === null || liveWordCount >= minimumWords;
-
-  const maximumExceeded = maximumWords !== null && liveWordCount > maximumWords;
-
-  const wordGoalProgress =
-    minimumWords && minimumWords > 0 ? Math.min((liveWordCount / minimumWords) * 100, 100) : null;
+      setRevisionComparison(result);
+    } catch {
+      setRevisionComparisonError(
+        "The revisions could not be compared right now. Please try again.",
+      );
+    } finally {
+      setIsComparing(false);
+    }
+  }
 
   async function handleRequestFeedback(): Promise<void> {
     if (sessionClosed || isEvaluating || isClosing) {
@@ -129,12 +183,106 @@ export function WritingEditor({
         },
       });
 
+      const existingFeedback = writingFeedback;
+
       setWritingFeedback(result);
+      setRevisionComparison(null);
+      setRevisionComparisonError(null);
+
+      if (existingFeedback && existingFeedback.revision.id !== result.revision.id) {
+        setPreviousFeedback(existingFeedback);
+      } else if (!existingFeedback) {
+        setPreviousFeedback(null);
+      }
+
+      setHasChangesSinceFeedback(false);
     } catch {
       setEvaluationError("Your writing could not be evaluated right now. Please try again.");
     } finally {
       setIsEvaluating(false);
     }
+  }
+
+  function handleApplySuggestion(
+    originalText: string,
+    replacementText: string,
+  ): WritingSuggestionApplyResult {
+    if (sessionClosed) {
+      return {
+        applied: false,
+        message: "This writing session is closed and can no longer be edited.",
+      };
+    }
+
+    if (interactionLocked) {
+      return {
+        applied: false,
+        message: "Your writing cannot be changed while the session is being updated.",
+      };
+    }
+
+    const source = originalText.trim();
+    const replacement = replacementText.trim();
+
+    if (!source || !replacement) {
+      return {
+        applied: false,
+        message: "This suggestion does not contain valid replacement text.",
+      };
+    }
+
+    if (source === replacement) {
+      return {
+        applied: false,
+        message: "The suggested text is the same as your current text.",
+      };
+    }
+
+    const firstIndex = content.indexOf(originalText);
+
+    if (firstIndex === -1) {
+      return {
+        applied: false,
+        message:
+          "This part of your writing has already changed. Review the latest draft before applying this suggestion.",
+      };
+    }
+
+    const secondIndex = content.indexOf(originalText, firstIndex + originalText.length);
+
+    if (secondIndex !== -1) {
+      return {
+        applied: false,
+        message:
+          "This exact text appears more than once in your draft, so Fluent Path cannot safely choose which occurrence to replace. Edit it manually instead.",
+      };
+    }
+
+    const nextContent =
+      content.slice(0, firstIndex) +
+      replacementText +
+      content.slice(firstIndex + originalText.length);
+
+    if (nextContent.length > 100_000) {
+      return {
+        applied: false,
+        message: "Applying this suggestion would make the draft too long.",
+      };
+    }
+
+    setContent(nextContent);
+
+    setEvaluationError(null);
+
+    if (writingFeedback) {
+      setHasChangesSinceFeedback(true);
+    }
+
+    return {
+      applied: true,
+      message:
+        "Suggestion applied to your draft. Your updated writing will be saved automatically.",
+    };
   }
 
   if (isLoading) {
@@ -208,6 +356,7 @@ export function WritingEditor({
           {status === "error" ? (
             <>
               <AlertCircle className="size-4 text-destructive" aria-hidden="true" />
+
               <span className="text-destructive">Save failed</span>
             </>
           ) : null}
@@ -294,6 +443,7 @@ export function WritingEditor({
               {taskSnapshot.audience ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Audience</dt>
+
                   <dd className="mt-1">{taskSnapshot.audience}</dd>
                 </div>
               ) : null}
@@ -301,6 +451,7 @@ export function WritingEditor({
               {taskSnapshot.purpose ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Purpose</dt>
+
                   <dd className="mt-1">{taskSnapshot.purpose}</dd>
                 </div>
               ) : null}
@@ -308,6 +459,7 @@ export function WritingEditor({
               {taskSnapshot.tone ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Tone</dt>
+
                   <dd className="mt-1">{taskSnapshot.tone}</dd>
                 </div>
               ) : null}
@@ -347,7 +499,9 @@ export function WritingEditor({
                 >
                   <div
                     className="h-full bg-primary transition-[width]"
-                    style={{ width: `${wordGoalProgress}%` }}
+                    style={{
+                      width: `${wordGoalProgress}%`,
+                    }}
                   />
                 </div>
               ) : null}
@@ -376,6 +530,11 @@ export function WritingEditor({
           value={content}
           onChange={(event) => {
             setContent(event.target.value);
+            setEvaluationError(null);
+
+            if (writingFeedback) {
+              setHasChangesSinceFeedback(true);
+            }
           }}
           placeholder={
             sessionClosed ? "This writing session has ended." : "Start writing in English..."
@@ -408,6 +567,7 @@ export function WritingEditor({
             </span>
           </div>
         </div>
+
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p id="writing-editor-help" className="text-xs text-muted-foreground">
             {lastSavedAt
@@ -419,7 +579,7 @@ export function WritingEditor({
           </p>
 
           {!sessionClosed ? (
-            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
+            <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-4">
               <Button
                 type="button"
                 variant="outline"
@@ -464,6 +624,7 @@ export function WritingEditor({
                 )}
                 Complete
               </Button>
+
               <Button
                 type="button"
                 variant="secondary"
@@ -489,18 +650,98 @@ export function WritingEditor({
         {evaluationError ? (
           <div
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+            className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
           >
             {evaluationError}
           </div>
         ) : null}
 
+        {writingFeedback && hasChangesSinceFeedback ? (
+          <div className="mt-6 rounded-lg border px-4 py-3" role="status">
+            <p className="text-sm font-medium">
+              You have changed your writing since this feedback.
+            </p>
+
+            <p className="mt-1 text-xs text-muted-foreground">
+              The feedback below belongs to revision {writingFeedback.revision.revisionNumber}.
+              Request feedback again when you are ready to evaluate your updated draft.
+            </p>
+          </div>
+        ) : null}
+
+        {writingFeedback ? (
+          <div
+            className="mt-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3"
+            aria-live="polite"
+          >
+            <div>
+              <p className="text-sm font-medium">
+                Feedback for revision {writingFeedback.revision.revisionNumber}
+              </p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                {writingFeedback.revision.created
+                  ? "A new revision snapshot was created from your latest saved draft."
+                  : "Your writing has not changed since this revision, so its existing snapshot was reused."}
+              </p>
+            </div>
+
+            <span className="rounded-full border bg-background px-2.5 py-1 text-xs font-medium">
+              Revision {writingFeedback.revision.revisionNumber}
+            </span>
+          </div>
+        ) : null}
+
         {writingFeedback ? (
           <WritingFeedback
+            userId={userId}
+            revisionId={writingFeedback.revision.id}
             overall={writingFeedback.overall}
             explanations={writingFeedback.explanations}
+            canApplySuggestions={!sessionClosed && !interactionLocked}
+            onApplySuggestion={handleApplySuggestion}
           />
         ) : null}
+
+        {previousFeedback &&
+        writingFeedback &&
+        previousFeedback.revision.id !== writingFeedback.revision.id ? (
+          <div className="mt-6 rounded-xl border p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">Compare your revisions</h3>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Compare revision {previousFeedback.revision.revisionNumber} with revision{" "}
+                  {writingFeedback.revision.revisionNumber}.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isComparing}
+                onClick={() => {
+                  void handleCompareRevisions();
+                }}
+              >
+                {isComparing ? (
+                  <Loader2 className="motion-safe:animate-spin" aria-hidden="true" />
+                ) : null}
+
+                {isComparing ? "Comparing..." : "Compare revisions"}
+              </Button>
+            </div>
+
+            {revisionComparisonError ? (
+              <p className="mt-3 text-sm text-destructive" role="alert">
+                {revisionComparisonError}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {revisionComparison ? <WritingRevisionComparison comparison={revisionComparison} /> : null}
       </div>
     </section>
   );
