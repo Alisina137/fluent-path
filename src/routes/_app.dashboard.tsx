@@ -1,27 +1,38 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Compass } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { WelcomeHero } from "@/components/dashboard/WelcomeHero";
-import { TodayPlan } from "@/components/dashboard/TodayPlan";
+import { toUserModule } from "@/lib/modules/user-module-adapter";
+import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
 import { ProgressCard } from "@/components/dashboard/ProgressCard";
 import { RecommendationCard } from "@/components/dashboard/RecommendationCard";
+import { TodayPlan } from "@/components/dashboard/TodayPlan";
+import { WelcomeHero } from "@/components/dashboard/WelcomeHero";
 import { ModulePreview } from "@/components/modules/ModulePreview";
-import { AssessmentCard } from "@/components/assessment/AssessmentCard";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { latestResult } from "@/lib/assessment/storage";
-import { MODULES, getModule } from "@/lib/modules/registry";
-import { recommendModules } from "@/lib/modules/recommend";
 import { useAuth } from "@/lib/auth/context";
-import { Compass } from "lucide-react";
+import { useModules } from "@/lib/modules/context";
+import { recommendModules } from "@/lib/modules/recommend";
+import { MODULES, getModule } from "@/lib/modules/registry";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Lumen English" },
-      { name: "description", content: "Your learning overview, today's plan and recommended modules." },
-      { property: "og:title", content: "Dashboard — Lumen English" },
-      { property: "og:description", content: "Your learning overview, today's plan and recommended modules." },
+      { title: "Dashboard — Fluent Path" },
+      {
+        name: "description",
+        content: "Your learning overview, today's plan and recommended modules.",
+      },
+      {
+        property: "og:title",
+        content: "Dashboard — Fluent Path",
+      },
+      {
+        property: "og:description",
+        content: "Your learning overview, today's plan and recommended modules.",
+      },
     ],
   }),
   component: Dashboard,
@@ -29,21 +40,58 @@ export const Route = createFileRoute("/_app/dashboard")({
 
 function Dashboard() {
   const { session } = useAuth();
+
+  const { modules: serverModules, isSubscribed, markModuleOpened } = useModules();
+
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const navigate = useNavigate();
+
   const assessmentResult = typeof window !== "undefined" ? latestResult() : null;
 
-  const goals = session?.profile?.learning_goals ?? [];
+  const goals = session?.profile?.learning_goals;
   const level = session?.profile?.english_level ?? null;
-  const ownedIds = (session?.modules ?? [])
-    .filter((m) => m.subscription_status === "active" || m.subscription_status === "trialing")
-    .map((m) => m.module_id);
+
+  const ownedIds = MODULES.filter((module) => isSubscribed(module.id)).map((module) => module.id);
 
   const recommendations = useMemo(
-    () => recommendModules({ goals, level, ownedIds, limit: 3 }),
+    () =>
+      recommendModules({
+        goals: goals ?? [],
+        level,
+        ownedIds,
+        limit: 3,
+      }),
     [goals, level, ownedIds],
   );
+
   const activeModule = previewId ? (getModule(previewId) ?? null) : null;
-  const ownedModules = MODULES.filter((m) => ownedIds.includes(m.id));
+
+  const ownedModules = MODULES.filter((module) => ownedIds.includes(module.id));
+
+  const activeServerModule = activeModule
+    ? serverModules.find((module) => module.moduleId === activeModule.id)
+    : undefined;
+
+  const activeUserModule = activeServerModule
+    ? (toUserModule(activeServerModule) ?? undefined)
+    : undefined;
+
+  function handleOpenModule(id: Parameters<typeof markModuleOpened>[0]) {
+    void markModuleOpened(id);
+    setPreviewId(null);
+
+    if (id === "speaking") {
+      void navigate({ to: "/speaking" });
+      return;
+    }
+
+    if (id === "writing") {
+      void navigate({ to: "/writing" });
+      return;
+    }
+
+    void navigate({ to: "/my-learning" });
+  }
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -53,24 +101,30 @@ function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <TodayPlan />
+
         <Card className="flex flex-col gap-3 p-6">
           <div className="flex items-center gap-2 text-xs font-medium text-primary">
-            <Compass className="h-3.5 w-3.5" /> Where to next
+            <Compass className="h-3.5 w-3.5" />
+            Where to next
           </div>
+
           <h3 className="text-lg font-semibold tracking-tight">
             {ownedModules.length === 0
               ? "Choose your first learning module."
               : "Keep your streak going."}
           </h3>
+
           <p className="text-sm text-muted-foreground">
             {ownedModules.length === 0
               ? "Modules unlock focused practice with an AI coach in your native language."
               : "Jump back into your active modules or explore something new."}
           </p>
+
           <div className="mt-auto flex flex-wrap gap-2">
             <Button asChild>
               <Link to="/modules">Browse marketplace</Link>
             </Button>
+
             {ownedModules.length > 0 ? (
               <Button asChild variant="outline">
                 <Link to="/my-learning">My learning</Link>
@@ -90,11 +144,11 @@ function Dashboard() {
         }
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recommendations.map((r) => (
+          {recommendations.map((recommendation) => (
             <RecommendationCard
-              key={r.module.id}
-              module={r.module}
-              reason={r.reason}
+              key={recommendation.module.id}
+              module={recommendation.module}
+              reason={recommendation.reason}
               onOpen={(id) => setPreviewId(id)}
             />
           ))}
@@ -106,10 +160,10 @@ function Dashboard() {
         description="Track how far you've come across every module."
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {MODULES.map((m) => (
+          {MODULES.map((module) => (
             <ProgressCard
-              key={m.id}
-              module={m}
+              key={module.id}
+              module={module}
               percent={0}
               onOpen={(id) => setPreviewId(id)}
             />
@@ -119,8 +173,14 @@ function Dashboard() {
 
       <ModulePreview
         module={activeModule}
+        userModule={activeUserModule}
         open={!!activeModule}
-        onOpenChange={(o) => !o && setPreviewId(null)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewId(null);
+          }
+        }}
+        onOpen={handleOpenModule}
       />
     </div>
   );

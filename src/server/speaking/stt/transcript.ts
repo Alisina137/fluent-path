@@ -3,10 +3,7 @@ import { SpeechToTextError } from "./types";
 const MAX_TRANSCRIPT_LENGTH = 10_000;
 
 export function normalizeSpeechTranscript(transcript: string): string {
-  const normalized = transcript
-    .replace(/\u0000/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  const normalized = transcript.replaceAll("\u0000", "").replace(/\s+/g, " ").trim();
 
   if (!normalized) {
     throw new SpeechToTextError({

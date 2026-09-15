@@ -20,7 +20,7 @@ interface UseWritingAutosaveResult {
   lastSavedAt: Date | null;
   wordCount: number;
   characterCount: number;
-  saveNow: () => Promise<void>;
+  saveNow: () => Promise<boolean>;
 }
 
 export function useWritingAutosave({
@@ -92,14 +92,14 @@ export function useWritingAutosave({
   }, [sessionId, userId]);
 
   const persistContent = useCallback(
-    async (contentToSave: string) => {
+    async (contentToSave: string): Promise<boolean> => {
       if (!loadedRef.current || sessionStatus !== "active") {
-        return;
+        return false;
       }
 
       if (contentToSave === lastPersistedContentRef.current) {
         setStatus("saved");
-        return;
+        return true;
       }
 
       const requestId = ++saveRequestIdRef.current;
@@ -117,7 +117,7 @@ export function useWritingAutosave({
         });
 
         if (requestId !== saveRequestIdRef.current) {
-          return;
+          return false;
         }
 
         lastPersistedContentRef.current = result.draft.content;
@@ -128,16 +128,19 @@ export function useWritingAutosave({
 
         if (contentRef.current === result.draft.content) {
           setStatus("saved");
-        } else {
-          setStatus("unsaved");
+          return true;
         }
+
+        setStatus("unsaved");
+        return false;
       } catch {
         if (requestId !== saveRequestIdRef.current) {
-          return;
+          return false;
         }
 
         setStatus("error");
         setError("Your latest changes could not be saved.");
+        return false;
       }
     },
     [sessionId, sessionStatus, userId],
@@ -161,7 +164,7 @@ export function useWritingAutosave({
   }, []);
 
   const saveNow = useCallback(async () => {
-    await persistContent(contentRef.current);
+    return await persistContent(contentRef.current);
   }, [persistContent]);
 
   useEffect(() => {

@@ -74,59 +74,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     persist(next);
   }, []);
 
-  const signUp = useCallback<AuthContextValue["signUp"]>(async ({ name, email }) => {
-    const now = new Date().toISOString();
-    const user: User = { id: crypto.randomUUID(), name, email, created_at: now };
-    update({
-      user,
-      profile: {
-        user_id: user.id,
-        english_level: null,
-        learning_goals: [],
-        daily_learning_time: 15,
-        learning_preferences: [],
-        onboarding_completed: false,
-        created_at: now,
-        updated_at: now,
-      },
-      language: null,
-      modules: [],
-      subscription: null,
-      onboarded: false,
-    });
-  }, [update]);
+  const signUp = useCallback<AuthContextValue["signUp"]>(
+    async ({ name, email }) => {
+      const now = new Date().toISOString();
+      const user: User = { id: crypto.randomUUID(), name, email, created_at: now };
+      update({
+        user,
+        profile: {
+          user_id: user.id,
+          english_level: null,
+          learning_goals: [],
+          daily_learning_time: 15,
+          learning_preferences: [],
+          onboarding_completed: false,
+          created_at: now,
+          updated_at: now,
+        },
+        language: null,
+        modules: [],
+        subscription: null,
+        onboarded: false,
+      });
+    },
+    [update],
+  );
 
-  const signIn = useCallback<AuthContextValue["signIn"]>(async ({ email }) => {
-    const existing = loadSession();
-    if (existing && existing.user.email === email) {
-      update(existing);
-      return;
-    }
-    const now = new Date().toISOString();
-    const user: User = {
-      id: crypto.randomUUID(),
-      name: email.split("@")[0],
-      email,
-      created_at: now,
-    };
-    update({
-      user,
-      profile: {
-        user_id: user.id,
-        english_level: null,
-        learning_goals: [],
-        daily_learning_time: 15,
-        learning_preferences: [],
-        onboarding_completed: false,
+  const signIn = useCallback<AuthContextValue["signIn"]>(
+    async ({ email }) => {
+      const existing = loadSession();
+      if (existing && existing.user.email === email) {
+        update(existing);
+        return;
+      }
+      const now = new Date().toISOString();
+      const user: User = {
+        id: crypto.randomUUID(),
+        name: email.split("@")[0],
+        email,
         created_at: now,
-        updated_at: now,
-      },
-      language: null,
-      modules: [],
-      subscription: null,
-      onboarded: false,
-    });
-  }, [update]);
+      };
+      update({
+        user,
+        profile: {
+          user_id: user.id,
+          english_level: null,
+          learning_goals: [],
+          daily_learning_time: 15,
+          learning_preferences: [],
+          onboarding_completed: false,
+          created_at: now,
+          updated_at: now,
+        },
+        language: null,
+        modules: [],
+        subscription: null,
+        onboarded: false,
+      });
+    },
+    [update],
+  );
 
   const signOut = useCallback(() => update(null), [update]);
 
@@ -202,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const now = new Date();
       const in30 = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       upsertModule(moduleId, (existing) => ({
-        user_id: existing?.user_id ?? "",
+        user_id: existing?.user_id ?? session?.user.id ?? "",
         module_id: moduleId,
         subscription_status: "active",
         activation_date: now.toISOString(),
@@ -212,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         progress_percentage: existing?.progress_percentage ?? 0,
       }));
     },
-    [upsertModule],
+    [session?.user.id, upsertModule],
   );
 
   const cancelModule = useCallback<AuthContextValue["cancelModule"]>(

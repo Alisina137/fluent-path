@@ -51,13 +51,22 @@ export const startWritingSessionServerFn = createServerFn({
 })
   .validator(startWritingSessionInputSchema)
   .handler(async ({ data }) => {
-    return startWritingSession(data.userId, {
-      taskId: data.taskId,
-      title: data.title,
-      writingType: data.writingType,
-      targetCefrLevel: data.targetCefrLevel,
-      prompt: data.prompt,
-    });
+    try {
+      return await startWritingSession(data.userId, {
+        taskId: data.taskId,
+        title: data.title,
+        writingType: data.writingType,
+        targetCefrLevel: data.targetCefrLevel,
+        prompt: data.prompt,
+      });
+    } catch (error) {
+      console.error("[writing:start-session] failed", {
+        name: error instanceof Error ? error.name : "UnknownError",
+        message: error instanceof Error ? error.message : String(error),
+      });
+
+      throw error;
+    }
   });
 
 export const getWritingSessionServerFn = createServerFn({
