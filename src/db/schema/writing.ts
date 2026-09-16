@@ -29,6 +29,8 @@ export const writingTasks = pgTable(
 
     prompt: text("prompt").notNull(),
 
+    description: text("description"),
+
     category: text("category").notNull(),
 
     writingType: text("writing_type").notNull(),
@@ -44,6 +46,10 @@ export const writingTasks = pgTable(
     purpose: text("purpose"),
 
     tone: text("tone"),
+
+    estimatedMinutes: integer("estimated_minutes"),
+
+    sortOrder: integer("sort_order").notNull().default(0),
 
     isActive: integer("is_active").notNull().default(1),
 
@@ -65,6 +71,8 @@ export const writingTasks = pgTable(
     index("writing_tasks_cefr_category_idx").on(table.cefrLevel, table.category),
 
     index("writing_tasks_active_idx").on(table.isActive),
+
+    index("writing_tasks_active_sort_idx").on(table.isActive, table.sortOrder),
   ],
 );
 
