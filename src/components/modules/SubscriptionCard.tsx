@@ -14,8 +14,7 @@ export function SubscriptionCard({
   userModule: UserModule;
   onCancel?: (id: LearningModule["id"]) => void;
 }) {
-  const Icon =
-    (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
+  const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   const state = getAccessState(module, userModule);
   const renewal = userModule.expiration_date
     ? new Date(userModule.expiration_date).toLocaleDateString(undefined, {

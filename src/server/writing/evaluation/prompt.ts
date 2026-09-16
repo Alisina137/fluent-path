@@ -50,11 +50,13 @@ Evaluate these five dimensions independently:
 
 Do not count the same underlying learner problem in multiple dimensions.
 
-Return only structured evaluation data.
+Return the evaluation only as a valid JSON object.
 
-Do not include markdown.
+The response must be valid JSON that can be parsed directly with JSON.parse().
 
-Do not include commentary outside the structured result.
+Do not wrap the JSON in markdown or code fences.
+
+Do not include commentary, explanations, or any text outside the JSON object.
 
 ${buildCefrScoringInstructions(cefrLevel)}
 
@@ -84,6 +86,10 @@ export function buildWritingEvaluationInput(request: WritingEvaluationRequest): 
   const { task, revision } = request;
 
   return `
+<OUTPUT_REQUIREMENT>
+Return the evaluation as a valid JSON object only.
+</OUTPUT_REQUIREMENT>
+
 <EVALUATION_CONTEXT>
 Target CEFR: ${task.targetCefrLevel}
 Writing type: ${task.writingType}

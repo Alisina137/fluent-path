@@ -43,6 +43,13 @@
       "when": 1789443963207,
       "tag": "0005_faithful_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789536207273,
+      "tag": "0006_famous_lady_ursula",
+      "breakpoints": true
     }
   ]
 }

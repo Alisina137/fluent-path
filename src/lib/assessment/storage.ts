@@ -25,7 +25,10 @@ function write(store: Store) {
 export function saveAttempt(attempt: AssessmentAttempt, result: AssessmentResult) {
   const store = read();
   store.attempts = [attempt, ...store.attempts.filter((a) => a.id !== attempt.id)].slice(0, 20);
-  store.results = [result, ...store.results.filter((r) => r.attempt_id !== attempt.id)].slice(0, 20);
+  store.results = [result, ...store.results.filter((r) => r.attempt_id !== attempt.id)].slice(
+    0,
+    20,
+  );
   write(store);
 }
 

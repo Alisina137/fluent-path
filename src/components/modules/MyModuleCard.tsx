@@ -16,8 +16,7 @@ export function MyModuleCard({
   userModule: UserModule;
   onOpen?: (id: LearningModule["id"]) => void;
 }) {
-  const Icon =
-    (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
+  const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   const percent = userModule.progress_percentage ?? 0;
   return (
     <Card className="flex flex-col gap-4 p-5">

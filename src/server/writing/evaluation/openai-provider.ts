@@ -1,10 +1,15 @@
+import { coherenceIssueCategories } from "./coherence/types";
 import { getWritingEvaluationApiKey, getWritingEvaluationModel } from "./config";
 import { WritingEvaluationError } from "./errors";
+import { grammarIssueCategories } from "./grammar/types";
+import { mechanicsIssueCategories } from "./mechanics/types";
 import { buildWritingEvaluationInput, buildWritingEvaluationSystemPrompt } from "./prompt";
 import type { WritingEvaluationProvider } from "./provider";
 import { validateWritingProviderEvaluation } from "./schema";
 import { calculateOverallWritingScore } from "./scoring/score";
+import { taskAchievementIssueCategories } from "./task-achievement/types";
 import type { WritingEvaluationRequest, WritingEvaluationResult } from "./types";
+import { vocabularyIssueCategories } from "./vocabulary/types";
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
 
@@ -24,6 +29,157 @@ type OpenAiResponse = {
   id?: unknown;
   output?: unknown;
 };
+
+function createIssueJsonSchema(categories: readonly string[]) {
+  return {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      category: {
+        type: "string",
+        enum: [...categories],
+      },
+
+      severity: {
+        type: "string",
+        enum: ["minor", "moderate", "major"],
+      },
+
+      message: {
+        type: "string",
+      },
+
+      explanation: {
+        type: "string",
+      },
+
+      originalText: {
+        type: ["string", "null"],
+      },
+
+      suggestedText: {
+        type: ["string", "null"],
+      },
+
+      startOffset: {
+        type: ["integer", "null"],
+      },
+
+      endOffset: {
+        type: ["integer", "null"],
+      },
+    },
+
+    required: [
+      "category",
+      "severity",
+      "message",
+      "explanation",
+      "originalText",
+      "suggestedText",
+      "startOffset",
+      "endOffset",
+    ],
+  };
+}
+
+function createDimensionJsonSchema(categories: readonly string[]) {
+  return {
+    type: "object",
+    additionalProperties: false,
+
+    properties: {
+      score: {
+        type: "integer",
+        minimum: 0,
+        maximum: 100,
+      },
+
+      summary: {
+        type: "string",
+      },
+
+      strengths: {
+        type: "array",
+
+        items: {
+          type: "object",
+          additionalProperties: false,
+
+          properties: {
+            category: {
+              type: "string",
+            },
+
+            message: {
+              type: "string",
+            },
+          },
+
+          required: ["category", "message"],
+        },
+      },
+
+      issues: {
+        type: "array",
+        items: createIssueJsonSchema(categories),
+      },
+    },
+
+    required: ["score", "summary", "strengths", "issues"],
+  };
+}
+
+function createWritingEvaluationJsonSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+
+    properties: {
+      schemaVersion: {
+        type: "integer",
+        enum: [1],
+      },
+
+      estimatedCefrLevel: {
+        type: "string",
+        enum: ["A1", "A2", "B1", "B2", "C1", "C2"],
+      },
+
+      summary: {
+        type: "string",
+      },
+
+      dimensions: {
+        type: "object",
+        additionalProperties: false,
+
+        properties: {
+          grammar: createDimensionJsonSchema(grammarIssueCategories),
+
+          vocabulary: createDimensionJsonSchema(vocabularyIssueCategories),
+
+          coherence: createDimensionJsonSchema(coherenceIssueCategories),
+
+          taskAchievement: createDimensionJsonSchema(taskAchievementIssueCategories),
+
+          mechanics: createDimensionJsonSchema(mechanicsIssueCategories),
+        },
+
+        required: ["grammar", "vocabulary", "coherence", "taskAchievement", "mechanics"],
+      },
+
+      nextSteps: {
+        type: "array",
+        items: {
+          type: "string",
+        },
+      },
+    },
+
+    required: ["schemaVersion", "estimatedCefrLevel", "summary", "dimensions", "nextSteps"],
+  };
+}
 
 function extractResponseText(payload: OpenAiResponse): string {
   if (!Array.isArray(payload.output)) {
@@ -142,12 +298,34 @@ async function evaluateWithOpenAi(
 
         text: {
           format: {
-            type: "json_object",
+            type: "json_schema",
+
+            name: "writing_evaluation",
+
+            description: "Structured educational evaluation of learner-authored English writing.",
+
+            strict: true,
+
+            schema: createWritingEvaluationJsonSchema(),
           },
         },
       }),
     });
   } catch (error) {
+    console.error("[writing-evaluation] OpenAI connection failed", {
+      errorName: error instanceof Error ? error.name : "UnknownError",
+
+      errorMessage: error instanceof Error ? error.message : "Unknown provider connection error",
+
+      causeCode:
+        error instanceof Error &&
+        error.cause &&
+        typeof error.cause === "object" &&
+        "code" in error.cause
+          ? String(error.cause.code)
+          : undefined,
+    });
+
     throw new WritingEvaluationError({
       code: "provider_unavailable",
       message: "The writing evaluation service could not be reached.",
@@ -159,6 +337,40 @@ async function evaluateWithOpenAi(
   }
 
   if (!response.ok) {
+    const requestId = response.headers.get("x-request-id");
+
+    let providerError:
+      | {
+          error?: {
+            message?: unknown;
+            type?: unknown;
+            code?: unknown;
+            param?: unknown;
+          };
+        }
+      | undefined;
+
+    try {
+      providerError = (await response.json()) as typeof providerError;
+    } catch {
+      providerError = undefined;
+    }
+
+    console.error("[writing-evaluation] OpenAI request failed", {
+      status: response.status,
+      requestId,
+
+      type: typeof providerError?.error?.type === "string" ? providerError.error.type : undefined,
+
+      code: typeof providerError?.error?.code === "string" ? providerError.error.code : undefined,
+
+      param:
+        typeof providerError?.error?.param === "string" ? providerError.error.param : undefined,
+
+      message:
+        typeof providerError?.error?.message === "string" ? providerError.error.message : undefined,
+    });
+
     throw mapOpenAiStatus(response.status);
   }
 
@@ -184,17 +396,25 @@ async function evaluateWithOpenAi(
 
   const overallScore = calculateOverallWritingScore({
     grammar: evaluation.dimensions.grammar.score,
+
     vocabulary: evaluation.dimensions.vocabulary.score,
+
     coherence: evaluation.dimensions.coherence.score,
+
     taskAchievement: evaluation.dimensions.taskAchievement.score,
+
     mechanics: evaluation.dimensions.mechanics.score,
   });
 
   return {
     ...evaluation,
+
     overallScore,
+
     provider: "openai",
+
     model,
+
     providerRequestId: response.headers.get("x-request-id"),
   };
 }

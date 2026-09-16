@@ -3,7 +3,15 @@ import { Badge } from "@/components/ui/badge";
 import { SKILL_LABELS } from "@/lib/assessment/sections";
 import type { SkillId } from "@/lib/types";
 
-export function ProgressTracker({ current, total, skill }: { current: number; total: number; skill: SkillId }) {
+export function ProgressTracker({
+  current,
+  total,
+  skill,
+}: {
+  current: number;
+  total: number;
+  skill: SkillId;
+}) {
   const pct = total ? Math.round(((current + 1) / total) * 100) : 0;
   return (
     <div className="flex flex-col gap-2">

@@ -1,9 +1,4 @@
-import type {
-  DailyLearningTime,
-  EnglishLevel,
-  LearningGoal,
-  LearningStyle,
-} from "@/lib/types";
+import type { DailyLearningTime, EnglishLevel, LearningGoal, LearningStyle } from "@/lib/types";
 
 export const ENGLISH_LEVELS: {
   value: EnglishLevel;
@@ -31,8 +26,7 @@ export const ENGLISH_LEVELS: {
     code: "B1",
     label: "Intermediate",
     description: "Confident in everyday conversations.",
-    example:
-      "I can understand everyday conversations and communicate about familiar topics.",
+    example: "I can understand everyday conversations and communicate about familiar topics.",
   },
   {
     value: "b2",

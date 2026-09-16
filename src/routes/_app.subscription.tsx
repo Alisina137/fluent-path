@@ -16,7 +16,10 @@ export const Route = createFileRoute("/_app/subscription")({
       { title: "Subscription — Lumen English" },
       { name: "description", content: "Manage your active learning modules and monthly plan." },
       { property: "og:title", content: "Subscription — Lumen English" },
-      { property: "og:description", content: "Manage your active learning modules and monthly plan." },
+      {
+        property: "og:description",
+        content: "Manage your active learning modules and monthly plan.",
+      },
     ],
   }),
   component: SubscriptionPage,
@@ -25,11 +28,13 @@ export const Route = createFileRoute("/_app/subscription")({
 function SubscriptionPage() {
   const { session, cancelModule } = useAuth();
   const userModules = session?.modules ?? [];
-  const items: { module: LearningModule; userModule: UserModule }[] = MODULES
-    .map((module) => ({ module, userModule: findUserModule(userModules, module.id) }))
-    .filter((i): i is { module: LearningModule; userModule: UserModule } =>
+  const items: { module: LearningModule; userModule: UserModule }[] = MODULES.map((module) => ({
+    module,
+    userModule: findUserModule(userModules, module.id),
+  })).filter(
+    (i): i is { module: LearningModule; userModule: UserModule } =>
       !!i.userModule && isSubscribed(i.userModule),
-    );
+  );
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">

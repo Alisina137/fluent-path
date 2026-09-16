@@ -6,3 +6,4 @@ export * from "./schema/notifications";
 export * from "./schema/subscriptions";
 export * from "./schema/speaking";
 export * from "./schema/writing";
+export * from "./schema/auth";

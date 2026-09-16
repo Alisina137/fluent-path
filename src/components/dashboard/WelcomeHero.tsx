@@ -25,7 +25,7 @@ export function WelcomeHero() {
 
   return (
     <Card
-      className="overflow-hidden border-none p-0 text-primary-foreground shadow-[var(--shadow-elegant)]"
+      className="overflow-hidden border-none p-0 text-primary-foreground shadow-(--shadow-elegant)"
       style={{ background: "var(--gradient-hero)" }}
     >
       <div className="grid gap-6 p-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:p-8">
@@ -52,8 +52,12 @@ export function WelcomeHero() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 md:min-w-[280px]">
-          <StatPill icon={<Target className="h-4 w-4" />} label="Today's goal" value={`${goal} min`} />
+        <div className="grid grid-cols-2 gap-3 md:min-w-70">
+          <StatPill
+            icon={<Target className="h-4 w-4" />}
+            label="Today's goal"
+            value={`${goal} min`}
+          />
           <StatPill icon={<Flame className="h-4 w-4" />} label="Streak" value="0 days" />
         </div>
       </div>
@@ -61,15 +65,7 @@ export function WelcomeHero() {
   );
 }
 
-function StatPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function StatPill({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-xl bg-white/12 p-3 backdrop-blur">
       <div className="flex items-center gap-1.5 text-xs text-primary-foreground/85">

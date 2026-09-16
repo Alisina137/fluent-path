@@ -36,8 +36,7 @@ export function ModulePreview({
   onNotify?: (id: LearningModule["id"]) => void;
 }) {
   if (!module) return null;
-  const Icon =
-    (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
+  const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   const state = getAccessState(module, userModule);
 
   return (
@@ -73,7 +72,11 @@ export function ModulePreview({
         <p className="text-sm text-muted-foreground">{module.full_description}</p>
 
         <div className="grid gap-5 md:grid-cols-2">
-          <Section title="What you'll learn" icon={<Sparkles className="h-4 w-4" />} items={module.benefits} />
+          <Section
+            title="What you'll learn"
+            icon={<Sparkles className="h-4 w-4" />}
+            items={module.benefits}
+          />
           <Section title="Features" icon={<Check className="h-4 w-4" />} items={module.features} />
         </div>
         <div className="grid gap-5 md:grid-cols-2">

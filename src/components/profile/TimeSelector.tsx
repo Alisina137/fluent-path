@@ -19,9 +19,7 @@ export function TimeSelector({ value, onChange }: Props) {
             onClick={() => onChange(t.value)}
             className={cn(
               "flex flex-col items-center rounded-xl border p-3 transition",
-              active
-                ? "border-primary bg-primary/5"
-                : "border-border hover:bg-secondary",
+              active ? "border-primary bg-primary/5" : "border-border hover:bg-secondary",
             )}
           >
             <span className="text-sm font-semibold">{t.label}</span>

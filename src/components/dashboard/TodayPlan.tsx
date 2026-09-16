@@ -32,7 +32,9 @@ export function TodayPlan() {
             A short daily plan personalised to your goals.
           </p>
         </div>
-        <Badge variant="outline" className="shrink-0">Preview</Badge>
+        <Badge variant="outline" className="shrink-0">
+          Preview
+        </Badge>
       </div>
       <ul className="mt-5 flex flex-col gap-2">
         {TASKS.map((t) => (

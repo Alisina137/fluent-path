@@ -19,9 +19,7 @@ export function EnglishLevelSelector({ value, onChange }: Props) {
             onClick={() => onChange(l.value)}
             className={cn(
               "flex items-start gap-3 rounded-xl border p-3 text-left transition",
-              active
-                ? "border-primary bg-primary/5 shadow-sm"
-                : "border-border hover:bg-secondary",
+              active ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:bg-secondary",
             )}
           >
             <span

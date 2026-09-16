@@ -22,20 +22,21 @@ import { SkillScoreCard } from "@/components/assessment/SkillScoreCard";
 import { ResultSummary } from "@/components/assessment/ResultSummary";
 import { SectionList } from "@/components/assessment/SectionList";
 import { getModule } from "@/lib/modules/registry";
-import type {
-  AssessmentAnswer,
-  AssessmentAttempt,
-  AssessmentResult,
-  SkillId,
-} from "@/lib/types";
+import type { AssessmentAnswer, AssessmentAttempt, AssessmentResult, SkillId } from "@/lib/types";
 
 export const Route = createFileRoute("/_app/assessment")({
   head: () => ({
     meta: [
       { title: "English Assessment — Lumen English" },
-      { name: "description", content: "Take a placement test across vocabulary, grammar, reading and listening." },
+      {
+        name: "description",
+        content: "Take a placement test across vocabulary, grammar, reading and listening.",
+      },
       { property: "og:title", content: "English Assessment — Lumen English" },
-      { property: "og:description", content: "Estimate your CEFR level and get module recommendations." },
+      {
+        property: "og:description",
+        content: "Estimate your CEFR level and get module recommendations.",
+      },
     ],
   }),
   component: AssessmentPage,
@@ -54,7 +55,10 @@ function AssessmentPage() {
   const [value, setValue] = useState<AnswerValue>(null);
   const [result, setResult] = useState<AssessmentResult | null>(() => latestResult());
 
-  const questions = useMemo(() => (attempt ? buildQuestionList(attempt.section_ids) : []), [attempt]);
+  const questions = useMemo(
+    () => (attempt ? buildQuestionList(attempt.section_ids) : []),
+    [attempt],
+  );
   const q = questions[current];
 
   function start() {
@@ -100,8 +104,8 @@ function AssessmentPage() {
             Find your English level in about 10–15 minutes.
           </h1>
           <p className="text-sm text-primary-foreground/80">
-            This placement test evaluates vocabulary, grammar, reading and listening.
-            Speaking and writing are coming soon.
+            This placement test evaluates vocabulary, grammar, reading and listening. Speaking and
+            writing are coming soon.
           </p>
           <div className="flex flex-wrap items-center gap-3 text-primary-foreground">
             <Badge variant="secondary" className="gap-1">
@@ -207,9 +211,7 @@ function AssessmentPage() {
             </p>
           </Card>
           <Card className="flex flex-col gap-2 p-5">
-            <h3 className="text-sm font-semibold text-rose-600 dark:text-rose-400">
-              Focus areas
-            </h3>
+            <h3 className="text-sm font-semibold text-rose-600 dark:text-rose-400">Focus areas</h3>
             <p className="text-sm text-muted-foreground">
               {result.weaknesses.length
                 ? result.weaknesses.map((s) => SKILL_LABELS[s]).join(", ")
@@ -226,10 +228,7 @@ function AssessmentPage() {
                 const m = getModule(id);
                 if (!m) return null;
                 return (
-                  <li
-                    key={id}
-                    className="flex items-center justify-between rounded-xl border p-3"
-                  >
+                  <li key={id} className="flex items-center justify-between rounded-xl border p-3">
                     <div>
                       <div className="text-sm font-medium">{m.name}</div>
                       <div className="text-xs text-muted-foreground">{m.tagline}</div>

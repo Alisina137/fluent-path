@@ -16,7 +16,7 @@ export function AssessmentCard({
 }) {
   if (!result) {
     return (
-      <Card className="flex flex-col gap-3 border-primary/20 bg-gradient-to-br from-primary/[0.06] to-transparent p-5">
+      <Card className="flex flex-col gap-3 border-primary/20 bg-linear-to-br from-primary-6 to-transparent p-5">
         <div className="flex items-center gap-2 text-xs font-medium text-primary">
           <Sparkles className="h-3.5 w-3.5" /> Placement test
         </div>
@@ -24,8 +24,8 @@ export function AssessmentCard({
           Find your English level in 10 minutes.
         </h3>
         <p className="text-sm text-muted-foreground">
-          Take a short placement test to unlock personalised module
-          recommendations across vocabulary, grammar, reading and listening.
+          Take a short placement test to unlock personalised module recommendations across
+          vocabulary, grammar, reading and listening.
         </p>
         <div className="mt-1 flex flex-wrap gap-2">
           <Button asChild>
@@ -48,9 +48,7 @@ export function AssessmentCard({
       <div className="flex flex-wrap items-center gap-3">
         <LevelBadge level={result.estimated_level} size="lg" />
         <Badge variant="outline">Overall {result.overall_percentage}%</Badge>
-        <Badge variant="secondary">
-          Confidence {result.confidence}%
-        </Badge>
+        <Badge variant="secondary">Confidence {result.confidence}%</Badge>
       </div>
       <p className="text-sm text-muted-foreground">
         Completed {formatRelativeDate(result.completed_at)}.

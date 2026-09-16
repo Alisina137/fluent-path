@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toUserModule } from "@/lib/modules/user-module-adapter";
 import { AssessmentCard } from "@/components/assessment/AssessmentCard";
 import { DashboardSection } from "@/components/dashboard/DashboardSection";
@@ -46,7 +46,11 @@ function Dashboard() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const assessmentResult = typeof window !== "undefined" ? latestResult() : null;
+  const [assessmentResult, setAssessmentResult] = useState<ReturnType<typeof latestResult>>(null);
+
+  useEffect(() => {
+    setAssessmentResult(latestResult());
+  }, []);
 
   const goals = session?.profile?.learning_goals;
   const level = session?.profile?.english_level ?? null;

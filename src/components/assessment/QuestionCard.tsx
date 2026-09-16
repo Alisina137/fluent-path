@@ -30,7 +30,9 @@ export function QuestionCard({
   return (
     <Card className="flex flex-col gap-5 p-6">
       <div className="flex items-center justify-between gap-3">
-        <Badge variant="outline" className="capitalize">{question.difficulty}</Badge>
+        <Badge variant="outline" className="capitalize">
+          {question.difficulty}
+        </Badge>
         <Badge variant="secondary" className="capitalize">
           {question.type.replace(/_/g, " ")}
         </Badge>
@@ -46,7 +48,9 @@ export function QuestionCard({
       </div>
       <Body question={question} value={value} onChange={onChange} />
       <div className="flex justify-end">
-        <Button onClick={onSubmit} disabled={!canSubmit}>Submit answer</Button>
+        <Button onClick={onSubmit} disabled={!canSubmit}>
+          Submit answer
+        </Button>
       </div>
     </Card>
   );
@@ -90,16 +94,17 @@ function Body({
     case "true_false":
       return (
         <div className="grid grid-cols-2 gap-2">
-          {[{ label: "True", v: true }, { label: "False", v: false }].map((o) => (
+          {[
+            { label: "True", v: true },
+            { label: "False", v: false },
+          ].map((o) => (
             <button
               key={o.label}
               type="button"
               onClick={() => onChange(o.v)}
               className={cn(
                 "rounded-xl border p-3 text-center text-sm font-medium transition",
-                value === o.v
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-secondary",
+                value === o.v ? "border-primary bg-primary/5" : "border-border hover:bg-secondary",
               )}
             >
               {o.label}
@@ -132,27 +137,34 @@ function Match({
 }) {
   const [pairs, setPairs] = useState<Record<string, string>>(() => {
     if (typeof value === "string") {
-      try { return JSON.parse(value); } catch { return {}; }
+      try {
+        return JSON.parse(value);
+      } catch {
+        return {};
+      }
     }
     return {};
   });
-  const options = useMemo(
-    () => [...question.pairs.map((p) => p.right)].sort(),
-    [question.pairs],
-  );
-  useEffect(() => { onChange(JSON.stringify(pairs)); }, [pairs, onChange]);
+  const options = useMemo(() => [...question.pairs.map((p) => p.right)].sort(), [question.pairs]);
+  useEffect(() => {
+    onChange(JSON.stringify(pairs));
+  }, [pairs, onChange]);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {question.pairs.map((p) => (
         <div key={p.left} className="flex items-center gap-2 rounded-xl border p-3">
-          <span className="min-w-[6rem] text-sm font-medium">{p.left}</span>
+          <span className="min-w-24 text-sm font-medium">{p.left}</span>
           <select
             className="flex-1 rounded-md border bg-background p-2 text-sm"
             value={pairs[p.left] ?? ""}
             onChange={(e) => setPairs((prev) => ({ ...prev, [p.left]: e.target.value }))}
           >
             <option value="">Choose…</option>
-            {options.map((r) => <option key={r} value={r}>{r}</option>)}
+            {options.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
           </select>
         </div>
       ))}

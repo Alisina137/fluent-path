@@ -13,8 +13,7 @@ export function ProgressCard({
   percent?: number;
   onOpen?: (id: LearningModule["id"]) => void;
 }) {
-  const Icon =
-    (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
+  const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   return (
     <Card className="flex flex-col gap-3 p-4">
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
@@ -28,12 +27,7 @@ export function ProgressCard({
           <div className="truncate text-sm font-medium">{module.name}</div>
           <div className="text-xs text-muted-foreground">{percent}% complete</div>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="shrink-0"
-          onClick={() => onOpen?.(module.id)}
-        >
+        <Button size="sm" variant="ghost" className="shrink-0" onClick={() => onOpen?.(module.id)}>
           Open
         </Button>
       </div>

@@ -99,19 +99,9 @@ export interface LearningModule {
   updated_at: ISODate;
 }
 
-export type SubscriptionStatus =
-  | "active"
-  | "trialing"
-  | "canceled"
-  | "inactive"
-  | "expired";
+export type SubscriptionStatus = "active" | "trialing" | "canceled" | "inactive" | "expired";
 
-export type ModuleAccessState =
-  | "available"
-  | "subscribed"
-  | "expired"
-  | "coming_soon"
-  | "locked";
+export type ModuleAccessState = "available" | "subscribed" | "expired" | "coming_soon" | "locked";
 
 export interface UserModule {
   user_id: string;
@@ -135,10 +125,7 @@ export interface Subscription {
 }
 
 export type NotificationType =
-  | "subscription_expiring"
-  | "new_module_available"
-  | "module_updated"
-  | "daily_reminder";
+  "subscription_expiring" | "new_module_available" | "module_updated" | "daily_reminder";
 
 export interface AppNotification {
   id: string;
@@ -152,23 +139,12 @@ export interface AppNotification {
 }
 
 // ============ Assessment ============
-export type SkillId =
-  | "vocabulary"
-  | "grammar"
-  | "reading"
-  | "listening"
-  | "speaking"
-  | "writing";
+export type SkillId = "vocabulary" | "grammar" | "reading" | "listening" | "speaking" | "writing";
 
 export type QuestionDifficulty = "easy" | "medium" | "hard";
 
 export type QuestionType =
-  | "multiple_choice"
-  | "fill_blank"
-  | "match"
-  | "synonym"
-  | "true_false"
-  | "sentence_correction";
+  "multiple_choice" | "fill_blank" | "match" | "synonym" | "true_false" | "sentence_correction";
 
 interface BaseQuestion {
   id: string;

@@ -14,10 +14,9 @@ export function RecommendationCard({
   reason: string;
   onOpen?: (id: LearningModule["id"]) => void;
 }) {
-  const Icon =
-    (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
+  const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   return (
-    <Card className="flex flex-col gap-3 border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent p-5">
+    <Card className="flex flex-col gap-3 border-primary/20 bg-linear-to-br from-primary/4 to-transparent p-5">
       <div className="flex items-center justify-between">
         <div
           className="grid h-10 w-10 place-items-center rounded-xl text-primary-foreground"

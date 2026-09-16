@@ -138,6 +138,14 @@ export async function evaluateWritingRevision(
 
   const result = await provider.evaluate(prepared.request);
 
+  const {
+    overallScore,
+    provider: providerName,
+    model,
+    providerRequestId,
+    ...providerEvaluation
+  } = result;
+
   const db = getDb();
 
   try {
@@ -146,25 +154,25 @@ export async function evaluateWritingRevision(
       .values({
         revisionId,
 
-        overallScore: result.overallScore,
+        overallScore,
 
-        grammarScore: result.dimensions.grammar.score,
+        grammarScore: providerEvaluation.dimensions.grammar.score,
 
-        vocabularyScore: result.dimensions.vocabulary.score,
+        vocabularyScore: providerEvaluation.dimensions.vocabulary.score,
 
-        coherenceScore: result.dimensions.coherence.score,
+        coherenceScore: providerEvaluation.dimensions.coherence.score,
 
-        taskAchievementScore: result.dimensions.taskAchievement.score,
+        taskAchievementScore: providerEvaluation.dimensions.taskAchievement.score,
 
-        mechanicsScore: result.dimensions.mechanics.score,
+        mechanicsScore: providerEvaluation.dimensions.mechanics.score,
 
-        evaluation: result,
+        evaluation: providerEvaluation,
 
-        provider: result.provider,
+        provider: providerName,
 
-        model: result.model,
+        model,
 
-        providerRequestId: result.providerRequestId,
+        providerRequestId,
       })
       .onConflictDoNothing({
         target: writingEvaluations.revisionId,

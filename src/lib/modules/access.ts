@@ -1,9 +1,4 @@
-import type {
-  LearningModule,
-  ModuleAccessState,
-  ModuleId,
-  UserModule,
-} from "@/lib/types";
+import type { LearningModule, ModuleAccessState, ModuleId, UserModule } from "@/lib/types";
 
 export const ACCESS_LABELS: Record<ModuleAccessState, string> = {
   available: "Available",
@@ -47,17 +42,11 @@ export function getAccessState(
   return "available";
 }
 
-export function hasModuleAccess(
-  module: LearningModule,
-  um: UserModule | undefined,
-): boolean {
+export function hasModuleAccess(module: LearningModule, um: UserModule | undefined): boolean {
   return getAccessState(module, um) === "subscribed";
 }
 
-export function canStartModule(
-  module: LearningModule,
-  um: UserModule | undefined,
-): boolean {
+export function canStartModule(module: LearningModule, um: UserModule | undefined): boolean {
   return hasModuleAccess(module, um);
 }
 

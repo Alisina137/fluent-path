@@ -1,11 +1,11 @@
 import { z } from "zod";
 
 import { coherenceIssueCategories } from "./coherence/types";
+import { WritingEvaluationError } from "./errors";
 import { grammarIssueCategories } from "./grammar/types";
 import { mechanicsIssueCategories } from "./mechanics/types";
 import { taskAchievementIssueCategories } from "./task-achievement/types";
 import { vocabularyIssueCategories } from "./vocabulary/types";
-import { WritingEvaluationError } from "./errors";
 
 const scoreSchema = z.number().int().min(0).max(100);
 
@@ -24,12 +24,19 @@ function createIssueSchema<T extends readonly [string, ...string[]]>(categories:
   return z
     .object({
       category: z.enum(categories),
+
       severity: severitySchema,
+
       message: z.string().trim().min(1).max(1_000),
+
       explanation: z.string().trim().min(1).max(2_000),
+
       originalText: z.string().max(5_000).nullable(),
+
       suggestedText: z.string().max(5_000).nullable(),
+
       startOffset: z.number().int().min(0).nullable(),
+
       endOffset: z.number().int().min(0).nullable(),
     })
     .strict();
@@ -39,8 +46,11 @@ function createDimensionSchema<T extends readonly [string, ...string[]]>(categor
   return z
     .object({
       score: scoreSchema,
+
       summary: z.string().trim().min(1).max(2_000),
+
       strengths: z.array(strengthSchema).max(20),
+
       issues: z.array(createIssueSchema(categories)).max(100),
     })
     .strict();
@@ -89,43 +99,46 @@ export function validateWritingProviderEvaluation(
     });
   }
 
-  for (const dimension of Object.values(parsed.data.dimensions)) {
+  return normalizeIssueOffsets(parsed.data, learnerText);
+}
+
+function normalizeIssueOffsets(
+  evaluation: ValidatedWritingProviderEvaluation,
+  learnerText: string,
+): ValidatedWritingProviderEvaluation {
+  for (const dimension of Object.values(evaluation.dimensions)) {
     for (const issue of dimension.issues) {
-      validateIssueOffsets(learnerText, issue.startOffset, issue.endOffset, issue.originalText);
+      const originalText = issue.originalText;
+
+      if (!originalText) {
+        issue.startOffset = null;
+        issue.endOffset = null;
+
+        continue;
+      }
+
+      const firstIndex = learnerText.indexOf(originalText);
+
+      if (firstIndex === -1) {
+        issue.startOffset = null;
+        issue.endOffset = null;
+
+        continue;
+      }
+
+      const secondIndex = learnerText.indexOf(originalText, firstIndex + originalText.length);
+
+      if (secondIndex !== -1) {
+        issue.startOffset = null;
+        issue.endOffset = null;
+
+        continue;
+      }
+
+      issue.startOffset = firstIndex;
+      issue.endOffset = firstIndex + originalText.length;
     }
   }
 
-  return parsed.data;
-}
-
-function validateIssueOffsets(
-  learnerText: string,
-  startOffset: number | null,
-  endOffset: number | null,
-  originalText: string | null,
-): void {
-  if (startOffset === null && endOffset === null) {
-    return;
-  }
-
-  if (
-    startOffset === null ||
-    endOffset === null ||
-    startOffset >= endOffset ||
-    endOffset > learnerText.length
-  ) {
-    throwInvalidOffset();
-  }
-
-  if (originalText !== null && learnerText.slice(startOffset, endOffset) !== originalText) {
-    throwInvalidOffset();
-  }
-}
-
-function throwInvalidOffset(): never {
-  throw new WritingEvaluationError({
-    code: "invalid_provider_response",
-    message: "The writing evaluation service returned invalid text references.",
-    retryable: true,
-  });
+  return evaluation;
 }

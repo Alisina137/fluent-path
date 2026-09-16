@@ -22,9 +22,7 @@ export function PreferenceSelector({ value, onChange }: Props) {
             onClick={() => toggle(s.value)}
             className={cn(
               "flex items-center gap-3 rounded-xl border p-3 text-left transition",
-              active
-                ? "border-primary bg-primary/5"
-                : "border-border hover:bg-secondary",
+              active ? "border-primary bg-primary/5" : "border-border hover:bg-secondary",
             )}
           >
             <span className="text-xl">{s.icon}</span>

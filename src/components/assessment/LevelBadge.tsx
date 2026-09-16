@@ -16,7 +16,11 @@ export function LevelBadge({ level, size = "sm" }: { level: EnglishLevel; size?:
   return (
     <Badge
       variant="secondary"
-      className={cn("border-transparent font-semibold", TONE[level], size === "lg" && "px-3 py-1 text-sm")}
+      className={cn(
+        "border-transparent font-semibold",
+        TONE[level],
+        size === "lg" && "px-3 py-1 text-sm",
+      )}
     >
       {LEVEL_LABELS[level]}
     </Badge>

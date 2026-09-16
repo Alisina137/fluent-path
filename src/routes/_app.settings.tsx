@@ -35,7 +35,10 @@ export const Route = createFileRoute("/_app/settings")({
       { title: "Settings — Lumen English" },
       { name: "description", content: "Update your account, language and learning preferences." },
       { property: "og:title", content: "Settings — Lumen English" },
-      { property: "og:description", content: "Manage your learning profile and translation settings." },
+      {
+        property: "og:description",
+        content: "Manage your learning profile and translation settings.",
+      },
     ],
   }),
   component: SettingsPage,
@@ -65,6 +68,7 @@ function SettingsPage() {
     setGoals(session.profile?.learning_goals ?? []);
     setTime(session.profile?.daily_learning_time ?? 15);
     setStyles(session.profile?.learning_preferences ?? []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id]);
 
   if (!session) return null;
@@ -104,7 +108,9 @@ function SettingsPage() {
         <div className="mt-5 flex items-center gap-4">
           <Avatar className="h-14 w-14">
             {avatar && <AvatarImage src={avatar} alt={name} />}
-            <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
+            <AvatarFallback className="bg-primary text-primary-foreground">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 space-y-1.5">
             <Label htmlFor="avatar">Avatar URL</Label>

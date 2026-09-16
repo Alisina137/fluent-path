@@ -26,7 +26,7 @@ export function ModuleCard({
 }) {
   const Icon = (Icons[module.icon as keyof typeof Icons] as Icons.LucideIcon) ?? Icons.Sparkles;
   return (
-    <Card className="group relative flex flex-col gap-4 overflow-hidden p-5 transition-shadow hover:shadow-[var(--shadow-soft)]">
+    <Card className="group relative flex flex-col gap-4 overflow-hidden p-5 transition-shadow hover:shadow-(--shadow-soft)">
       <div className="flex items-start justify-between">
         <div
           className="flex h-11 w-11 items-center justify-center rounded-xl text-primary-foreground"

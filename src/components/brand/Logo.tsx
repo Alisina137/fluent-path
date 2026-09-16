@@ -4,7 +4,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2">
       <div
-        className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-foreground shadow-[var(--shadow-soft)]"
+        className="flex h-8 w-8 items-center justify-center rounded-lg text-primary-foreground shadow-(--shadow-soft)"
         style={{ background: "var(--gradient-hero)" }}
       >
         <Sparkles className="h-4 w-4" />

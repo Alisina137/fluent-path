@@ -25,35 +25,56 @@ const requestWritingFeedbackInputSchema = z.object({
 export const requestWritingFeedbackServerFn = createServerFn({ method: "POST" })
   .validator(requestWritingFeedbackInputSchema)
   .handler(async ({ data }) => {
-    const revisionResult = await createOrReuseWritingRevision(data.userId, data.sessionId);
+    try {
+      const revisionResult = await createOrReuseWritingRevision(data.userId, data.sessionId);
 
-    const revision = revisionResult.revision;
+      const revision = revisionResult.revision;
 
-    const storedOrResult = await evaluateWritingRevision(data.userId, revision.id);
-    const evaluation = normalizeEvaluationResult(storedOrResult, revision.content);
+      const storedOrResult = await evaluateWritingRevision(data.userId, revision.id);
 
-    const feedback = normalizeWritingFeedback(evaluation);
+      const evaluation = normalizeEvaluationResult(storedOrResult, revision.content);
 
-    return {
-      revision: {
-        id: revision.id,
-        revisionNumber: revision.revisionNumber,
-        content: revision.content,
-        wordCount: revision.wordCount,
-        characterCount: revision.characterCount,
-        created: revisionResult.created,
-      },
+      const feedback = normalizeWritingFeedback(evaluation);
 
-      evaluation,
+      const overall = buildOverallWritingFeedback(evaluation, feedback);
 
-      feedback,
+      const sentenceFeedback = buildSentenceFeedback(revision.content, feedback);
 
-      overall: buildOverallWritingFeedback(evaluation, feedback),
+      const explanations = buildWritingFeedbackExplanations(feedback.items);
 
-      sentenceFeedback: buildSentenceFeedback(revision.content, feedback),
+      return {
+        revision: {
+          id: revision.id,
+          revisionNumber: revision.revisionNumber,
+          content: revision.content,
+          wordCount: revision.wordCount,
+          characterCount: revision.characterCount,
+          created: revisionResult.created,
+        },
 
-      explanations: buildWritingFeedbackExplanations(feedback.items),
-    };
+        evaluation,
+        feedback,
+        overall,
+        sentenceFeedback,
+        explanations,
+      };
+    } catch (error) {
+      console.error("[writing-feedback] request failed", {
+        errorName: error instanceof Error ? error.name : "UnknownError",
+
+        errorMessage: error instanceof Error ? error.message : "Unknown writing feedback error",
+
+        errorCode:
+          error && typeof error === "object" && "code" in error ? String(error.code) : undefined,
+
+        retryable:
+          error && typeof error === "object" && "retryable" in error
+            ? Boolean(error.retryable)
+            : undefined,
+      });
+
+      throw error;
+    }
   });
 
 function normalizeEvaluationResult(

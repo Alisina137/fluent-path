@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components */
+
 import {
   createContext,
   useCallback,
@@ -63,12 +65,15 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const user = session?.user ?? null;
+  const userId = session?.user.id ?? null;
+  const userEmail = session?.user.email ?? null;
+  const userName = session?.user.name ?? null;
 
   const refreshModules = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setModules([]);
       setError(null);
+      setIsLoading(false);
       return;
     }
 
@@ -78,7 +83,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
     try {
       const result = await getUserModulesServerFn({
         data: {
-          userId: user.id,
+          userId,
         },
       });
 
@@ -88,7 +93,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     void refreshModules();
@@ -96,22 +101,22 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
   const subscribeModule = useCallback(
     async (moduleId: ModuleId) => {
-      if (!user) {
+      if (!userId || !userEmail || !userName) {
         throw new Error("Authentication is required.");
       }
 
       await activateDevelopmentModuleServerFn({
         data: {
-          userId: user.id,
-          email: user.email,
-          name: user.name,
+          userId,
+          email: userEmail,
+          name: userName,
           moduleId,
         },
       });
 
       await refreshModules();
     },
-    [refreshModules, user],
+    [refreshModules, userEmail, userId, userName],
   );
 
   const renewModule = useCallback(
@@ -123,31 +128,31 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
   const cancelModule = useCallback(
     async (moduleId: ModuleId) => {
-      if (!user) {
+      if (!userId) {
         throw new Error("Authentication is required.");
       }
 
       await cancelDevelopmentModuleServerFn({
         data: {
-          userId: user.id,
+          userId,
           moduleId,
         },
       });
 
       await refreshModules();
     },
-    [refreshModules, user],
+    [refreshModules, userId],
   );
 
   const markModuleOpened = useCallback(
     async (moduleId: ModuleId) => {
-      if (!user) {
+      if (!userId) {
         return;
       }
 
       await markDevelopmentModuleOpenedServerFn({
         data: {
-          userId: user.id,
+          userId,
           moduleId,
         },
       });
@@ -163,7 +168,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         ),
       );
     },
-    [user],
+    [userId],
   );
 
   const findModule = useCallback(

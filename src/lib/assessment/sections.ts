@@ -51,10 +51,7 @@ export const ASSESSMENT_SECTIONS: AssessmentSectionMeta[] = [
   },
 ];
 
-export const SKILL_LABELS: Record<
-  AssessmentSectionMeta["id"],
-  string
-> = ASSESSMENT_SECTIONS.reduce(
+export const SKILL_LABELS: Record<AssessmentSectionMeta["id"], string> = ASSESSMENT_SECTIONS.reduce(
   (acc, s) => {
     acc[s.id] = s.name;
     return acc;

@@ -57,13 +57,8 @@ export function scoreSkill(answers: AssessmentAnswer[], skill: SkillId): SkillSc
   const weighted_correct = items
     .filter((a) => a.correct)
     .reduce((sum, a) => sum + DIFFICULTY_WEIGHT[a.difficulty], 0);
-  const weighted_total = items.reduce(
-    (sum, a) => sum + DIFFICULTY_WEIGHT[a.difficulty],
-    0,
-  );
-  const percentage = weighted_total
-    ? Math.round((weighted_correct / weighted_total) * 100)
-    : 0;
+  const weighted_total = items.reduce((sum, a) => sum + DIFFICULTY_WEIGHT[a.difficulty], 0);
+  const percentage = weighted_total ? Math.round((weighted_correct / weighted_total) * 100) : 0;
   return { skill, correct, total, weighted_correct, weighted_total, percentage };
 }
 

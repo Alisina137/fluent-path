@@ -18,10 +18,7 @@ export function levelFromPercentage(pct: number): EnglishLevel {
   return "c2";
 }
 
-export function confidenceFrom(
-  scores: SkillScore[],
-  expectedSkillCount: number,
-): number {
+export function confidenceFrom(scores: SkillScore[], expectedSkillCount: number): number {
   const totalQuestions = scores.reduce((s, x) => s + x.total, 0);
   const attempted = scores.filter((s) => s.total > 0).length;
   const base = Math.min(100, 40 + totalQuestions * 4);

@@ -34,7 +34,6 @@ export async function activateDevelopmentModule(user: DevelopmentUser, moduleId:
   const db = getDb();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
   const [result] = await db
     .insert(userModules)
     .values({

@@ -20,18 +20,16 @@ import {
   levelLabel,
   styleLabel,
 } from "@/lib/onboarding/options";
-import type {
-  DailyLearningTime,
-  EnglishLevel,
-  LearningGoal,
-  LearningStyle,
-} from "@/lib/types";
+import type { DailyLearningTime, EnglishLevel, LearningGoal, LearningStyle } from "@/lib/types";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
       { title: "Set up your profile — Lumen English" },
-      { name: "description", content: "Tell us about your English goals to personalise your plan." },
+      {
+        name: "description",
+        content: "Tell us about your English goals to personalise your plan.",
+      },
       { property: "og:title", content: "Set up your profile — Lumen English" },
       { property: "og:description", content: "Personalise your English learning plan." },
     ],
@@ -77,7 +75,7 @@ function OnboardingWizard() {
     setStep((s) => Math.max(1, s - 1));
   }
 
-  function finish() {
+  async function finish() {
     const lang = NATIVE_LANGUAGES.find((l) => l.code === langCode) ?? NATIVE_LANGUAGES[0];
     updateLanguage({
       native_language: lang.name,
@@ -91,11 +89,11 @@ function OnboardingWizard() {
       daily_learning_time: time,
       learning_preferences: styles,
     });
-    completeOnboarding();
-    navigate({ to: "/dashboard" });
+    await completeOnboarding();
+    await navigate({ to: "/dashboard" });
   }
 
-  function finishAndAssess() {
+  async function finishAndAssess() {
     const lang = NATIVE_LANGUAGES.find((l) => l.code === langCode) ?? NATIVE_LANGUAGES[0];
     updateLanguage({
       native_language: lang.name,
@@ -109,8 +107,8 @@ function OnboardingWizard() {
       daily_learning_time: time,
       learning_preferences: styles,
     });
-    completeOnboarding();
-    navigate({ to: "/assessment" });
+    await completeOnboarding();
+    await navigate({ to: "/assessment" });
   }
 
   const canContinue =
@@ -142,10 +140,8 @@ function OnboardingWizard() {
             <Progress value={progress} className="h-1.5" />
           </div>
 
-          <div className="min-h-[360px] p-6 md:p-8">
-            {step === 1 && (
-              <StepWelcome name={session?.user.name} />
-            )}
+          <div className="min-h-90 p-6 md:p-8">
+            {step === 1 && <StepWelcome name={session?.user.name} />}
             {step === 2 && (
               <StepShell
                 title="What's your native language?"

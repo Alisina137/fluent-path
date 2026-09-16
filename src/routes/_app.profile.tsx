@@ -59,7 +59,9 @@ function ProfilePage() {
           <Row label="Daily commitment" value={timeLabel} />
           <Row
             label="Native language"
-            value={language ? `${language.native_language} (${language.native_language_code})` : "—"}
+            value={
+              language ? `${language.native_language} (${language.native_language_code})` : "—"
+            }
           />
           <Row
             label="Translations"
