@@ -9,18 +9,32 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
-
+import { WritingVocabularySuggestions } from "@/components/writing/WritingVocabularySuggestions";
+import { WritingToneGuidance } from "@/components/writing/WritingToneGuidance";
 import {
   WritingFeedback,
   type WritingSuggestionApplyResult,
 } from "@/components/writing/WritingFeedback";
+import { WritingGrammarHelp } from "@/components/writing/WritingGrammarHelp";
 import { WritingRevisionComparison } from "@/components/writing/WritingRevisionComparison";
+import { WritingParaphraseAssistance } from "@/components/writing/WritingParaphraseAssistance";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { requestWritingFeedbackServerFn } from "@/lib/writing/evaluation-functions";
 import { compareWritingRevisionsServerFn } from "@/lib/writing/revision-functions";
 import { getWritingTextStatistics } from "@/lib/writing/text-statistics";
 import { useWritingAutosave } from "@/lib/writing/use-writing-autosave";
+
+type WritingAssistanceCefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+
+const writingAssistanceCefrLevels: readonly WritingAssistanceCefrLevel[] = [
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "C1",
+  "C2",
+];
 
 interface WritingTaskSnapshot {
   source: "task" | "custom";
@@ -47,6 +61,12 @@ interface WritingEditorProps {
   onComplete: () => Promise<void>;
   onAbandon: () => Promise<void>;
   isClosing?: boolean;
+}
+
+function normalizeWritingCefrLevel(value: string): WritingAssistanceCefrLevel {
+  const matchedLevel = writingAssistanceCefrLevels.find((level) => level === value);
+
+  return matchedLevel ?? "B1";
 }
 
 export function WritingEditor({
@@ -90,6 +110,8 @@ export function WritingEditor({
 
   const [isComparing, setIsComparing] = useState(false);
 
+  const [grammarHelpText, setGrammarHelpText] = useState<string | null>(null);
+
   const sessionClosed = sessionStatus !== "active";
 
   const interactionLocked = isClosing || isPreparingClose;
@@ -108,6 +130,24 @@ export function WritingEditor({
 
   const wordGoalProgress =
     minimumWords && minimumWords > 0 ? Math.min((liveWordCount / minimumWords) * 100, 100) : null;
+
+  function handleGrammarSelection(event: React.SyntheticEvent<HTMLTextAreaElement>): void {
+    if (sessionClosed || interactionLocked) {
+      return;
+    }
+
+    const textarea = event.currentTarget;
+
+    const selectedText = textarea.value
+      .slice(textarea.selectionStart, textarea.selectionEnd)
+      .trim();
+
+    if (!selectedText) {
+      return;
+    }
+
+    setGrammarHelpText(selectedText);
+  }
 
   async function handleCloseSession(action: () => Promise<void>): Promise<void> {
     if (sessionClosed || interactionLocked) {
@@ -356,7 +396,6 @@ export function WritingEditor({
           {status === "error" ? (
             <>
               <AlertCircle className="size-4 text-destructive" aria-hidden="true" />
-
               <span className="text-destructive">Save failed</span>
             </>
           ) : null}
@@ -443,7 +482,6 @@ export function WritingEditor({
               {taskSnapshot.audience ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Audience</dt>
-
                   <dd className="mt-1">{taskSnapshot.audience}</dd>
                 </div>
               ) : null}
@@ -451,7 +489,6 @@ export function WritingEditor({
               {taskSnapshot.purpose ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Purpose</dt>
-
                   <dd className="mt-1">{taskSnapshot.purpose}</dd>
                 </div>
               ) : null}
@@ -459,7 +496,6 @@ export function WritingEditor({
               {taskSnapshot.tone ? (
                 <div className="rounded-lg border bg-background p-3">
                   <dt className="text-xs font-medium text-muted-foreground">Tone</dt>
-
                   <dd className="mt-1">{taskSnapshot.tone}</dd>
                 </div>
               ) : null}
@@ -536,6 +572,7 @@ export function WritingEditor({
               setHasChangesSinceFeedback(true);
             }
           }}
+          onSelect={handleGrammarSelection}
           placeholder={
             sessionClosed ? "This writing session has ended." : "Start writing in English..."
           }
@@ -553,7 +590,6 @@ export function WritingEditor({
         >
           <div className="flex items-baseline gap-1.5">
             <span className="font-semibold tabular-nums">{liveWordCount.toLocaleString()}</span>
-
             <span className="text-muted-foreground">{liveWordCount === 1 ? "word" : "words"}</span>
           </div>
 
@@ -561,12 +597,50 @@ export function WritingEditor({
             <span className="font-semibold tabular-nums">
               {liveCharacterCount.toLocaleString()}
             </span>
-
             <span className="text-muted-foreground">
               {liveCharacterCount === 1 ? "character" : "characters"}
             </span>
           </div>
         </div>
+
+        {grammarHelpText && !sessionClosed ? (
+          <div className="mt-4">
+            {grammarHelpText && !sessionClosed ? (
+              <div className="mt-4 space-y-4">
+                <WritingGrammarHelp
+                  userId={userId}
+                  selectedText={grammarHelpText}
+                  targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
+                  disabled={interactionLocked}
+                  onClearSelection={() => {
+                    setGrammarHelpText(null);
+                  }}
+                />
+
+                <WritingVocabularySuggestions
+                  userId={userId}
+                  selectedText={grammarHelpText}
+                  targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
+                  disabled={interactionLocked}
+                />
+
+                <WritingToneGuidance
+                  userId={userId}
+                  selectedText={grammarHelpText}
+                  targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
+                  disabled={interactionLocked}
+                />
+
+                <WritingParaphraseAssistance
+                  userId={userId}
+                  selectedText={grammarHelpText}
+                  targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
+                  disabled={interactionLocked}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p id="writing-editor-help" className="text-xs text-muted-foreground">
