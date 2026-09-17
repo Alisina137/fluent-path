@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  BarChart3,
   BookOpen,
   BookOpenCheck,
   Clock3,
@@ -11,7 +12,7 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-
+import { WritingProgressDashboard } from "@/components/writing/WritingProgressDashboard";
 import { WritingEditor } from "@/components/writing/WritingEditor";
 import { WritingPracticeTaskDetails } from "@/components/writing/WritingPracticeTaskDetails";
 import { Badge } from "@/components/ui/badge";
@@ -115,6 +116,7 @@ function hasActiveFilters(filters: PracticeFilters): boolean {
 export function WritingCoachScreen() {
   const { session: authSession } = useAuth();
   const user = authSession?.user ?? null;
+  const [activeView, setActiveView] = useState<"practice" | "progress">("practice");
 
   const [selectedCefrLevel, setSelectedCefrLevel] = useState<CefrLevel>("A1");
 
@@ -344,6 +346,34 @@ export function WritingCoachScreen() {
         </p>
       </header>
 
+      {user && !session && !selectedPracticeTask ? (
+        <nav className="flex flex-wrap gap-2" aria-label="Writing Coach sections">
+          <Button
+            type="button"
+            variant={activeView === "practice" ? "default" : "outline"}
+            aria-pressed={activeView === "practice"}
+            onClick={() => {
+              setActiveView("practice");
+            }}
+          >
+            <PenLine aria-hidden="true" />
+            Practice
+          </Button>
+
+          <Button
+            type="button"
+            variant={activeView === "progress" ? "default" : "outline"}
+            aria-pressed={activeView === "progress"}
+            onClick={() => {
+              setActiveView("progress");
+            }}
+          >
+            <BarChart3 aria-hidden="true" />
+            Progress
+          </Button>
+        </nav>
+      ) : null}
+
       {operationError ? (
         <div
           className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
@@ -409,6 +439,8 @@ export function WritingCoachScreen() {
           }}
           onStart={handleStartPracticeTask}
         />
+      ) : user && activeView === "progress" ? (
+        <WritingProgressDashboard userId={user.id} />
       ) : (
         <>
           <section
