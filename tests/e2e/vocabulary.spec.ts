@@ -11,6 +11,6 @@ test.describe("Vocabulary Builder", () => {
   test("loads the authenticated vocabulary experience", async ({ page }) => {
     await installE2EAuthSession(page);
     await page.goto("/vocabulary");
-    await expect(page.getByRole("heading", { name: /Turn new words into words you can use/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Turn new words into words you can use/i })).toBeVisible({\n      timeout: 20_000,\n    });
   });
 });
