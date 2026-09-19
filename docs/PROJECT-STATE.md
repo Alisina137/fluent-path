@@ -35,7 +35,8 @@ Implemented outcome:
 - Migration `0016_vocabulary_builder.sql` has been applied in the development environment.
 - Vocabulary E2E suite: 2 tests passed in the user's working tree.
 - Production Vite/TanStack/Nitro build passed in the user's working tree on 2026-09-19; only non-blocking chunk-size and Vite tsconfig-paths warnings were reported.
-- Final Phase 8 verification still requires a successful Neon `vocabulary:count` after pulling the `.env.local` loader fix, plus confirmation of the TypeScript check result.
+- Neon import reached 20,013 active entries, revealing 13 legacy starter rows outside the canonical 20,000-word catalog. Cleanup now safely deactivates only unreferenced extras and refuses to modify user-linked vocabulary.
+- Final Phase 8 verification requires rerunning import/count after this normalization fix and confirming the TypeScript check result.
 - The generated 20,000-word JSON and download cache are intentionally ignored; the catalog is reproducible from the preparation script.
 - Catalog CEFR/POS/frequency data is source-backed. Full learner-quality definitions, examples, topics, synonyms, and non-English translations remain enrichment work and must not be represented as verified source content.
 - Phase 7 left non-blocking dev/test ECONNRESET logging noise and a Vite tsconfig-paths deprecation warning.
