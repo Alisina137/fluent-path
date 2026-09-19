@@ -91,6 +91,11 @@ function MyLearning() {
                   return;
                 }
 
+                if (id === "vocabulary") {
+                  void navigate({ to: "/vocabulary" });
+                  return;
+                }
+
                 toast.info(`${module.name} lesson content is not available yet.`);
               }}
             />
