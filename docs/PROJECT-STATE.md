@@ -14,9 +14,10 @@ TanStack Start/Router, React 19, TypeScript, Vite 8, Tailwind CSS 4, Radix UI, N
 5. Subscription/module access
 6. AI Speaking Coach
 7. AI Writing Coach
+8. Vocabulary Builder
 
 ## Current phase
-Phase 8 — Vocabulary Builder. Implementation branch: `phase-08-vocabulary-builder`.
+Phase 8 — Vocabulary Builder is complete and verified on implementation branch `phase-08-vocabulary-builder`. PR #1 remains open and unmerged pending explicit merge authorization.
 
 Implemented outcome:
 - CEFR A1-C2 vocabulary catalog with topic filters and search.
@@ -31,15 +32,19 @@ Implemented outcome:
 - Reproducible 20,000-word CEFR catalog preparation/import pipeline (A1 1,500; A2 2,500; B1 3,500; B2 4,000; C1 4,500; C2 4,000).
 - Vocabulary data scripts load `.env.local` consistently with local application configuration.
 
-## Known verification / setup
-- Migration `0016_vocabulary_builder.sql` has been applied in the development environment.
-- Vocabulary E2E suite: 2 tests passed in the user's working tree.
-- Production Vite/TanStack/Nitro build passed in the user's working tree on 2026-09-19; only non-blocking chunk-size and Vite tsconfig-paths warnings were reported.
-- Neon import reached 20,013 active entries, revealing 13 legacy starter rows outside the canonical 20,000-word catalog. Cleanup now deactivates legacy rows outside the canonical catalog while preserving all learner/review history through existing foreign-key references.
-- Final Phase 8 verification requires rerunning import/count after this normalization fix and confirming the TypeScript check result.
-- The generated 20,000-word JSON and download cache are intentionally ignored; the catalog is reproducible from the preparation script.
-- Catalog CEFR/POS/frequency data is source-backed. Full learner-quality definitions, examples, topics, synonyms, and non-English translations remain enrichment work and must not be represented as verified source content.
+## Verification / setup
+- Migration `0016_vocabulary_builder.sql` applied in the development environment.
+- Vocabulary E2E suite: 2 tests passed.
+- TypeScript check: `npx tsc --noEmit` passed.
+- Production Vite/TanStack/Nitro build passed on 2026-09-19; only non-blocking chunk-size and Vite tsconfig-paths warnings were reported.
+- Neon vocabulary import normalized the active catalog to exactly 20,000 entries and preserved learner/review history by deactivating 13 legacy rows outside the canonical catalog.
+- Exact CEFR distribution verified: A1 1,500; A2 2,500; B1 3,500; B2 4,000; C1 4,500; C2 4,000.
+- Generated catalog JSON and download cache are intentionally ignored; the catalog is reproducible from the preparation script.
+- Catalog CEFR/POS/frequency data is source-backed. Full learner-quality definitions, examples, topics, synonyms, and non-English translations are not source-verified for all 20,000 entries and remain content-enrichment work.
 - Phase 7 left non-blocking dev/test ECONNRESET logging noise and a Vite tsconfig-paths deprecation warning.
 
+## Latest delivery revision
+`2593fffb556cbe19cb9ad72b935671a15601f00c` — Phase 8 finalized on `phase-08-vocabulary-builder`.
+
 ## Next phase
-Phase 9 — Listening Lab, after Phase 8 migration and verification are complete.
+Phase 9 — Listening Lab.
