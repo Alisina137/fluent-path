@@ -20,7 +20,7 @@ TanStack Start/Router, React 19, TypeScript, Vite 8, Tailwind CSS 4, Radix UI, N
 Phase 8 — Vocabulary Builder is complete and verified on implementation branch `phase-08-vocabulary-builder`. PR #1 remains open and unmerged pending explicit merge authorization.
 
 Implemented outcome:
-- CEFR A1-C2 vocabulary catalog with topic filters and search.
+- CEFR A1-C2 vocabulary catalog with server-side topic/level/search filtering and 30-word pagination across the full 20,000-word catalog.
 - Native-language translations using the learner language setting.
 - Personal learning list and due review queue.
 - Persistent spaced-repetition state and immutable review history.
@@ -44,7 +44,7 @@ Implemented outcome:
 - Phase 7 left non-blocking dev/test ECONNRESET logging noise and a Vite tsconfig-paths deprecation warning.
 
 ## Latest delivery revision
-`2593fffb556cbe19cb9ad72b935671a15601f00c` — Phase 8 finalized on `phase-08-vocabulary-builder`.
+Phase 8 pagination/search fix added after the original finalization revision; verification of this follow-up fix is pending in the local working tree.
 
 ## Next phase
 Phase 9 — Listening Lab.
