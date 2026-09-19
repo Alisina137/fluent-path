@@ -1,4 +1,4 @@
-import { and, asc, count, eq, lte, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, lte, or } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { userLanguageSettings, userVocabulary, vocabularyReviews, vocabularyWords } from "@/db/schema";
@@ -18,15 +18,28 @@ function nextSchedule(rating: VocabularyReviewRating, interval: number, ease: nu
   return { interval: Math.max(1, Math.round(Math.max(1, interval) * (ease / 100))), ease, streakDelta: 1 };
 }
 
-export async function getVocabularyDashboard(userId: string, level?: VocabularyCefrLevel, topic?: string) {
+export async function getVocabularyDashboard(userId: string, level?: VocabularyCefrLevel, topic?: string, query?: string, page = 1, pageSize = 30) {
   await requireServerModuleAccess(userId, MODULE_IDS.vocabulary);
   const db = getDb();
   const now = new Date();
   const filters = [eq(vocabularyWords.isActive, 1)];
   if (level) filters.push(eq(vocabularyWords.cefrLevel, level));
   if (topic?.trim()) filters.push(eq(vocabularyWords.topic, topic.trim()));
+  if (query?.trim()) {
+    const pattern = `%${query.trim()}%`;
+    filters.push(
+      or(
+        ilike(vocabularyWords.term, pattern),
+        ilike(vocabularyWords.definition, pattern),
+        ilike(vocabularyWords.topic, pattern),
+      )!,
+    );
+  }
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(60, Math.max(10, pageSize));
+  const offset = (safePage - 1) * safePageSize;
 
-  const [settings, words, topics, dueRows, learnedRows, reviewRows] = await Promise.all([
+  const [settings, words, totalRows, topics, dueRows, learnedRows, reviewRows] = await Promise.all([
     db.select({ nativeLanguageCode: userLanguageSettings.nativeLanguageCode }).from(userLanguageSettings).where(eq(userLanguageSettings.userId, userId)).limit(1),
     db.select({
       id: vocabularyWords.id, term: vocabularyWords.term, partOfSpeech: vocabularyWords.partOfSpeech,
@@ -34,7 +47,8 @@ export async function getVocabularyDashboard(userId: string, level?: VocabularyC
       topic: vocabularyWords.topic, synonyms: vocabularyWords.synonyms, translations: vocabularyWords.translations,
       status: userVocabulary.status, dueAt: userVocabulary.dueAt, reviewCount: userVocabulary.reviewCount,
     }).from(vocabularyWords).leftJoin(userVocabulary, and(eq(userVocabulary.wordId, vocabularyWords.id), eq(userVocabulary.userId, userId)))
-      .where(and(...filters)).orderBy(asc(vocabularyWords.cefrLevel), asc(vocabularyWords.sortOrder)).limit(100),
+      .where(and(...filters)).orderBy(asc(vocabularyWords.cefrLevel), asc(vocabularyWords.sortOrder), asc(vocabularyWords.term)).limit(safePageSize).offset(offset),
+    db.select({ count: count() }).from(vocabularyWords).where(and(...filters)),
     db.selectDistinct({ topic: vocabularyWords.topic }).from(vocabularyWords).where(eq(vocabularyWords.isActive, 1)).orderBy(asc(vocabularyWords.topic)),
     db.select({ count: count() }).from(userVocabulary).where(and(eq(userVocabulary.userId, userId), lte(userVocabulary.dueAt, now))),
     db.select({ count: count() }).from(userVocabulary).where(and(eq(userVocabulary.userId, userId), eq(userVocabulary.status, "mastered"))),
@@ -47,6 +61,12 @@ export async function getVocabularyDashboard(userId: string, level?: VocabularyC
     topics: topics.map((row) => row.topic),
     stats: { due: Number(dueRows[0]?.count ?? 0), mastered: Number(learnedRows[0]?.count ?? 0), reviews: Number(reviewRows[0]?.count ?? 0) },
     nativeLanguageCode: languageCode,
+    pagination: {
+      page: safePage,
+      pageSize: safePageSize,
+      total: Number(totalRows[0]?.count ?? 0),
+      totalPages: Math.max(1, Math.ceil(Number(totalRows[0]?.count ?? 0) / safePageSize)),
+    },
   };
 }
 
