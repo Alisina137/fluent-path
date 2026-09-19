@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookMarked,
   CheckCircle2,
@@ -33,6 +33,8 @@ export function VocabularyBuilderScreen() {
   const [level, setLevel] = useState<(typeof LEVELS)[number] | undefined>();
   const [topic, setTopic] = useState<string | undefined>();
   const [query, setQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewQueue, setReviewQueue] = useState<ReviewWord[] | null>(null);
@@ -48,7 +50,7 @@ export function VocabularyBuilderScreen() {
     setLoading(true);
     setError(null);
     try {
-      setDashboard(await getVocabularyDashboardServerFn({ data: { level, topic } }));
+      setDashboard(await getVocabularyDashboardServerFn({ data: { level, topic, query: searchQuery || undefined, page, pageSize: 30 } }));
     } catch {
       setError("Your vocabulary library could not be loaded.");
     } finally {
@@ -59,17 +61,15 @@ export function VocabularyBuilderScreen() {
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user.id, subscribed, level, topic]);
+  }, [session?.user.id, subscribed, level, topic, searchQuery, page]);
 
-  const visibleWords = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return dashboard?.words ?? [];
-    return (dashboard?.words ?? []).filter((word) =>
-      [word.term, word.definition, word.topic, word.translation ?? ""].some((value) =>
-        value.toLowerCase().includes(q),
-      ),
-    );
-  }, [dashboard, query]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setPage(1);
+      setSearchQuery(query.trim());
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
 
   async function beginReview() {
     setBusy(true);
@@ -253,6 +253,7 @@ export function VocabularyBuilderScreen() {
             onClick={() => {
               setLevel(level === item ? undefined : item);
               setTopic(undefined);
+              setPage(1);
             }}
           >
             {item}
@@ -285,7 +286,7 @@ export function VocabularyBuilderScreen() {
             <Button
               size="sm"
               variant={!topic ? "secondary" : "outline"}
-              onClick={() => setTopic(undefined)}
+              onClick={() => { setTopic(undefined); setPage(1); }}
             >
               All topics
             </Button>
@@ -294,7 +295,7 @@ export function VocabularyBuilderScreen() {
                 key={item}
                 size="sm"
                 variant={topic === item ? "secondary" : "outline"}
-                onClick={() => setTopic(item)}
+                onClick={() => { setTopic(item); setPage(1); }}
               >
                 {item}
               </Button>
@@ -306,7 +307,7 @@ export function VocabularyBuilderScreen() {
             <Loader2 className="mr-2 size-5 animate-spin" />
             Loading vocabulary…
           </div>
-        ) : visibleWords.length === 0 ? (
+        ) : (dashboard?.words.length ?? 0) === 0 ? (
           <Card>
             <CardContent className="py-10 text-center">
               <Layers3 className="mx-auto size-7 text-muted-foreground" />
@@ -315,7 +316,7 @@ export function VocabularyBuilderScreen() {
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {visibleWords.map((word) => (
+            {dashboard?.words.map((word) => (
               <Card key={word.id} className="flex flex-col">
                 <CardHeader>
                   <div className="flex flex-wrap gap-2">
@@ -361,6 +362,34 @@ export function VocabularyBuilderScreen() {
             ))}
           </div>
         )}
+        {dashboard && dashboard.pagination.total > 0 ? (
+          <nav className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Vocabulary pagination">
+            <p className="text-sm text-muted-foreground">
+              Showing {(dashboard.pagination.page - 1) * dashboard.pagination.pageSize + 1}–
+              {Math.min(dashboard.pagination.page * dashboard.pagination.pageSize, dashboard.pagination.total)} of{" "}
+              {dashboard.pagination.total.toLocaleString()} words
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                disabled={loading || dashboard.pagination.page <= 1}
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+              >
+                Previous
+              </Button>
+              <span className="min-w-24 text-center text-sm">
+                Page {dashboard.pagination.page} of {dashboard.pagination.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                disabled={loading || dashboard.pagination.page >= dashboard.pagination.totalPages}
+                onClick={() => setPage((current) => current + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </nav>
+        ) : null}
       </section>
     </main>
   );
