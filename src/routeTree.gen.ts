@@ -23,6 +23,7 @@ import { Route as AppProgressRouteImport } from './routes/_app.progress'
 import { Route as AppSettingsRouteImport } from './routes/_app.settings'
 import { Route as AppSpeakingRouteImport } from './routes/_app.speaking'
 import { Route as AppSubscriptionRouteImport } from './routes/_app.subscription'
+import { Route as AppVocabularyRouteImport } from './routes/_app.vocabulary'
 import { Route as AppWritingRouteImport } from './routes/_app.writing'
 
 const IndexRoute = IndexRouteImport.update({
@@ -94,6 +95,11 @@ const AppSubscriptionRoute = AppSubscriptionRouteImport.update({
   path: '/subscription',
   getParentRoute: () => AppRoute,
 } as any)
+const AppVocabularyRoute = AppVocabularyRouteImport.update({
+  id: '/vocabulary',
+  path: '/vocabulary',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppWritingRoute = AppWritingRouteImport.update({
   id: '/writing',
   path: '/writing',
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/speaking': typeof AppSpeakingRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/vocabulary': typeof AppVocabularyRoute
   '/writing': typeof AppWritingRoute
 }
 export interface FileRoutesByTo {
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/speaking': typeof AppSpeakingRoute
   '/subscription': typeof AppSubscriptionRoute
+  '/vocabulary': typeof AppVocabularyRoute
   '/writing': typeof AppWritingRoute
 }
 export interface FileRoutesById {
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/speaking': typeof AppSpeakingRoute
   '/_app/subscription': typeof AppSubscriptionRoute
+  '/_app/vocabulary': typeof AppVocabularyRoute
   '/_app/writing': typeof AppWritingRoute
 }
 export interface FileRouteTypes {
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/speaking'
     | '/subscription'
+    | '/vocabulary'
     | '/writing'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/speaking'
     | '/subscription'
+    | '/vocabulary'
     | '/writing'
   id:
     | '__root__'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/speaking'
     | '/_app/subscription'
+    | '/_app/vocabulary'
     | '/_app/writing'
   fileRoutesById: FileRoutesById
 }
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSubscriptionRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/vocabulary': {
+      id: '/_app/vocabulary'
+      path: '/vocabulary'
+      fullPath: '/vocabulary'
+      preLoaderRoute: typeof AppVocabularyRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/writing': {
       id: '/_app/writing'
       path: '/writing'
@@ -330,6 +349,7 @@ interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
   AppSpeakingRoute: typeof AppSpeakingRoute
   AppSubscriptionRoute: typeof AppSubscriptionRoute
+  AppVocabularyRoute: typeof AppVocabularyRoute
   AppWritingRoute: typeof AppWritingRoute
 }
 
@@ -343,6 +363,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
   AppSpeakingRoute: AppSpeakingRoute,
   AppSubscriptionRoute: AppSubscriptionRoute,
+  AppVocabularyRoute: AppVocabularyRoute,
   AppWritingRoute: AppWritingRoute,
 }
 
