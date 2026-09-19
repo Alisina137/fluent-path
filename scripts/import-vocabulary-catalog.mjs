@@ -84,11 +84,51 @@ try {
     );
   }
 
+  const catalogKeys = clean.map((row) => `${row.term.toLowerCase()}::${row.cefrLevel}`);
+  const extras = await client.query(
+    `SELECT term, cefr_level
+     FROM vocabulary_words
+     WHERE is_active = 1
+       AND (LOWER(term) || '::' || cefr_level) <> ALL($1::text[])`,
+    [catalogKeys],
+  );
+
+  if (extras.rows.length > 0) {
+    const extraIds = await client.query(
+      `SELECT vw.id
+       FROM vocabulary_words vw
+       LEFT JOIN user_vocabulary uv ON uv.word_id = vw.id
+       WHERE vw.is_active = 1
+         AND (LOWER(vw.term) || '::' || vw.cefr_level) <> ALL($1::text[])
+       GROUP BY vw.id
+       HAVING COUNT(uv.id) = 0`,
+      [catalogKeys],
+    );
+
+    const safeIds = extraIds.rows.map((row) => row.id);
+    if (safeIds.length > 0) {
+      await client.query("UPDATE vocabulary_words SET is_active = 0, updated_at = NOW() WHERE id = ANY($1::uuid[])", [safeIds]);
+    }
+
+    const remainingExtras = await client.query(
+      `SELECT COUNT(*)::int AS count
+       FROM vocabulary_words
+       WHERE is_active = 1
+         AND (LOWER(term) || '::' || cefr_level) <> ALL($1::text[])`,
+      [catalogKeys],
+    );
+    if (remainingExtras.rows[0].count > 0) {
+      throw new Error(
+        `Cannot normalize catalog to exactly ${TARGET}: ${remainingExtras.rows[0].count} extra active words are already referenced by user learning data. No user data was modified.`,
+      );
+    }
+  }
+
   const result = await client.query("SELECT COUNT(*)::int AS count FROM vocabulary_words WHERE is_active = 1");
-  if (result.rows[0].count < TARGET) throw new Error(`Import finished below target: ${result.rows[0].count} active entries.`);
+  if (result.rows[0].count !== TARGET) throw new Error(`Import finished with ${result.rows[0].count} active entries; expected exactly ${TARGET}.`);
 
   await client.query("COMMIT");
-  console.log(`Vocabulary import complete: ${result.rows[0].count} active entries.`);
+  console.log(`Vocabulary import complete: exactly ${result.rows[0].count} active entries.`);
 } catch (error) {
   await client.query("ROLLBACK");
   throw error;
