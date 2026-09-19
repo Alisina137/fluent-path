@@ -1,6 +1,6 @@
-import "dotenv/config";
 import fs from "node:fs/promises";
 import pg from "pg";
+import { requireDatabaseUrl } from "./load-local-env.mjs";
 
 const { Client } = pg;
 const TARGET = 20_000;
@@ -48,7 +48,7 @@ for (const [index, row] of clean.entries()) {
   if (!row.definition || !row.example) throw new Error(`Missing definition/example at row ${index + 1}: ${row.term}.`);
 }
 
-const client = new Client({ connectionString: process.env.DATABASE_URL });
+const client = new Client({ connectionString: requireDatabaseUrl() });
 await client.connect();
 
 try {
