@@ -1,8 +1,8 @@
-import "dotenv/config";
 import pg from "pg";
+import { requireDatabaseUrl } from "./load-local-env.mjs";
 
 const { Client } = pg;
-const client = new Client({ connectionString: process.env.DATABASE_URL });
+const client = new Client({ connectionString: requireDatabaseUrl() });
 await client.connect();
 try {
   const result = await client.query(
