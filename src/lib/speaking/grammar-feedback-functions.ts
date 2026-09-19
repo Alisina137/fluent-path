@@ -125,7 +125,7 @@ function safeGrammarErrorMessage(code: GrammarFeedbackFailureCode): string {
 export const evaluateSpeakingGrammarServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(grammarEvaluationInputSchema)
+  .validator(grammarEvaluationInputSchema)
   .handler(async ({ data }): Promise<GrammarFeedbackServerResult> => {
     try {
       const [messagesModule, grammarModule] = await Promise.all([

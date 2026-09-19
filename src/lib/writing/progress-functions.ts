@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 
 import {
   getWritingImprovementTrends,
@@ -7,32 +6,32 @@ import {
   getWritingSubmissionHistory,
 } from "@/server/writing/progress/service";
 
-const writingProgressRequestSchema = z
-  .object({
-    userId: z.string().uuid(),
-  })
-  .strict();
-
 export const getWritingSkillMetricsServerFn = createServerFn({
   method: "GET",
-})
-  .validator((data: unknown) => writingProgressRequestSchema.parse(data))
-  .handler(async ({ data }) => {
-    return getWritingSkillMetrics(data.userId);
-  });
+}).handler(async () => {
+  const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+  const userId = await requireAuthenticatedUserId();
+
+  return getWritingSkillMetrics(userId);
+});
 
 export const getWritingSubmissionHistoryServerFn = createServerFn({
   method: "GET",
-})
-  .validator((data: unknown) => writingProgressRequestSchema.parse(data))
-  .handler(async ({ data }) => {
-    return getWritingSubmissionHistory(data.userId);
-  });
+}).handler(async () => {
+  const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+  const userId = await requireAuthenticatedUserId();
+
+  return getWritingSubmissionHistory(userId);
+});
 
 export const getWritingImprovementTrendsServerFn = createServerFn({
   method: "GET",
-})
-  .validator((data: unknown) => writingProgressRequestSchema.parse(data))
-  .handler(async ({ data }) => {
-    return getWritingImprovementTrends(data.userId);
-  });
+}).handler(async () => {
+  const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+  const userId = await requireAuthenticatedUserId();
+
+  return getWritingImprovementTrends(userId);
+});

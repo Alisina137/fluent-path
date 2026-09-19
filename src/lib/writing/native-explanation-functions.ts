@@ -5,8 +5,6 @@ import { requestNativeExplanation } from "@/server/writing/assistance/native-exp
 
 const nativeExplanationRequestSchema = z
   .object({
-    userId: z.string().uuid(),
-
     englishExplanation: z.string().trim().min(1).max(5_000),
 
     targetLanguage: z.enum([
@@ -34,13 +32,14 @@ export const requestNativeExplanationServerFn = createServerFn({
 })
   .validator((data: unknown) => nativeExplanationRequestSchema.parse(data))
   .handler(async ({ data }) => {
-    return requestNativeExplanation(data.userId, {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return requestNativeExplanation(userId, {
       englishExplanation: data.englishExplanation,
-
       targetLanguage: data.targetLanguage,
-
       targetCefrLevel: data.targetCefrLevel,
-
       context: data.context,
     });
   });

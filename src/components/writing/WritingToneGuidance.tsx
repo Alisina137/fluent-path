@@ -22,7 +22,6 @@ type WritingToneTarget =
 type ToneGuidanceResult = Awaited<ReturnType<typeof requestToneGuidanceServerFn>>;
 
 interface WritingToneGuidanceProps {
-  userId: string;
   selectedText: string;
   targetCefrLevel: ToneCefrLevel;
   disabled?: boolean;
@@ -33,7 +32,6 @@ function formatValue(value: string): string {
 }
 
 export function WritingToneGuidance({
-  userId,
   selectedText,
   targetCefrLevel,
   disabled = false,
@@ -64,7 +62,6 @@ export function WritingToneGuidance({
     try {
       const response = await requestToneGuidanceServerFn({
         data: {
-          userId,
           selectedText,
           targetCefrLevel,
           targetTone,
@@ -170,7 +167,6 @@ export function WritingToneGuidance({
 
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">{result.summary}</p>
                 <WritingNativeExplanation
-                  userId={userId}
                   englishExplanation={result.summary}
                   targetCefrLevel={targetCefrLevel}
                   context="tone"
@@ -211,7 +207,6 @@ export function WritingToneGuidance({
 
                       <p className="mt-1 text-sm leading-6">{issue.explanation}</p>
                       <WritingNativeExplanation
-                        userId={userId}
                         englishExplanation={issue.explanation}
                         targetCefrLevel={targetCefrLevel}
                         context="tone"

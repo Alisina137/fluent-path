@@ -21,7 +21,6 @@ type ParaphraseGoal = "natural" | "simpler" | "concise" | "clearer";
 type ParaphraseResult = Awaited<ReturnType<typeof requestParaphrasesServerFn>>;
 
 interface WritingParaphraseAssistanceProps {
-  userId: string;
   selectedText: string;
   targetCefrLevel: ParaphraseCefrLevel;
   disabled?: boolean;
@@ -32,7 +31,6 @@ function formatGoal(value: string): string {
 }
 
 export function WritingParaphraseAssistance({
-  userId,
   selectedText,
   targetCefrLevel,
   disabled = false,
@@ -62,7 +60,6 @@ export function WritingParaphraseAssistance({
     try {
       const response = await requestParaphrasesServerFn({
         data: {
-          userId,
           selectedText,
           targetCefrLevel,
           goal,
@@ -157,7 +154,6 @@ export function WritingParaphraseAssistance({
 
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.summary}</p>
                 <WritingNativeExplanation
-                  userId={userId}
                   englishExplanation={result.summary}
                   targetCefrLevel={targetCefrLevel}
                   context="paraphrasing"
@@ -182,7 +178,6 @@ export function WritingParaphraseAssistance({
 
                     <p className="mt-1 text-sm leading-6">{option.explanation}</p>
                     <WritingNativeExplanation
-                      userId={userId}
                       englishExplanation={option.explanation}
                       targetCefrLevel={targetCefrLevel}
                       context="paraphrasing"

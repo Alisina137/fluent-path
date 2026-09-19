@@ -139,7 +139,7 @@ function consumeTtsRequestBudget(userId: string): boolean {
 export const generateSpeakingMessageSpeechServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(speakingSpeechInputSchema)
+  .validator(speakingSpeechInputSchema)
   .handler(async ({ data }): Promise<SpeakingSpeechResult> => {
     try {
       const [messagesModule, ttsServiceModule] = await Promise.all([

@@ -4,7 +4,6 @@ import { z } from "zod";
 import { compareOwnedWritingRevisions } from "@/server/writing/revisions";
 
 const compareWritingRevisionsInputSchema = z.object({
-  userId: z.string().min(1),
   sessionId: z.string().uuid(),
   beforeRevisionId: z.string().uuid(),
   afterRevisionId: z.string().uuid(),
@@ -15,8 +14,12 @@ export const compareWritingRevisionsServerFn = createServerFn({
 })
   .validator(compareWritingRevisionsInputSchema)
   .handler(async ({ data }) => {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
     return compareOwnedWritingRevisions(
-      data.userId,
+      userId,
       data.sessionId,
       data.beforeRevisionId,
       data.afterRevisionId,

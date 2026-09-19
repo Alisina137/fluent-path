@@ -4,7 +4,6 @@ import { z } from "zod";
 import { generateWritingRewriteSuggestion } from "@/server/writing/rewrite/service";
 
 const writingRewriteInputSchema = z.object({
-  userId: z.string().min(1),
   revisionId: z.string().uuid(),
   feedbackId: z.string().min(1).max(500),
 });
@@ -14,7 +13,11 @@ export const requestWritingRewriteServerFn = createServerFn({
 })
   .validator(writingRewriteInputSchema)
   .handler(async ({ data }) => {
-    return generateWritingRewriteSuggestion(data.userId, {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return generateWritingRewriteSuggestion(userId, {
       revisionId: data.revisionId,
       feedbackId: data.feedbackId,
     });

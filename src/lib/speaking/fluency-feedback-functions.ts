@@ -145,7 +145,7 @@ function safeFluencyErrorMessage(code: FluencyFeedbackFailureCode): string {
 export const evaluateSpeakingFluencyServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(fluencyEvaluationInputSchema)
+  .validator(fluencyEvaluationInputSchema)
   .handler(async ({ data }): Promise<FluencyFeedbackServerResult> => {
     try {
       const [messagesModule, fluencyModule] = await Promise.all([

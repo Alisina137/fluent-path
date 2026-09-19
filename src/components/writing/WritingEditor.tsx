@@ -35,6 +35,7 @@ const writingAssistanceCefrLevels: readonly WritingAssistanceCefrLevel[] = [
   "C1",
   "C2",
 ];
+const MAX_WRITING_EVALUATION_CHARACTERS = 20_000;
 
 interface WritingTaskSnapshot {
   source: "task" | "custom";
@@ -51,7 +52,6 @@ interface WritingTaskSnapshot {
 }
 
 interface WritingEditorProps {
-  userId: string;
   sessionId: string;
   sessionStatus: "active" | "completed" | "abandoned";
   title: string | null;
@@ -70,7 +70,6 @@ function normalizeWritingCefrLevel(value: string): WritingAssistanceCefrLevel {
 }
 
 export function WritingEditor({
-  userId,
   sessionId,
   sessionStatus,
   title,
@@ -83,7 +82,6 @@ export function WritingEditor({
 }: WritingEditorProps) {
   const { content, setContent, status, isLoading, error, lastSavedAt, saveNow } =
     useWritingAutosave({
-      userId,
       sessionId,
       sessionStatus,
     });
@@ -180,7 +178,6 @@ export function WritingEditor({
     try {
       const result = await compareWritingRevisionsServerFn({
         data: {
-          userId,
           sessionId,
           beforeRevisionId: previousFeedback.revision.id,
           afterRevisionId: writingFeedback.revision.id,
@@ -218,7 +215,6 @@ export function WritingEditor({
 
       const result = await requestWritingFeedbackServerFn({
         data: {
-          userId,
           sessionId,
         },
       });
@@ -534,7 +530,7 @@ export function WritingEditor({
                   aria-valuenow={Math.min(liveWordCount, minimumWords ?? liveWordCount)}
                 >
                   <div
-                    className="h-full bg-primary transition-[width]"
+                    className="h-full bg-primary motion-safe:transition-[width]"
                     style={{
                       width: `${wordGoalProgress}%`,
                     }}
@@ -608,7 +604,6 @@ export function WritingEditor({
             {grammarHelpText && !sessionClosed ? (
               <div className="mt-4 space-y-4">
                 <WritingGrammarHelp
-                  userId={userId}
                   selectedText={grammarHelpText}
                   targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
                   disabled={interactionLocked}
@@ -618,21 +613,18 @@ export function WritingEditor({
                 />
 
                 <WritingVocabularySuggestions
-                  userId={userId}
                   selectedText={grammarHelpText}
                   targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
                   disabled={interactionLocked}
                 />
 
                 <WritingToneGuidance
-                  userId={userId}
                   selectedText={grammarHelpText}
                   targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
                   disabled={interactionLocked}
                 />
 
                 <WritingParaphraseAssistance
-                  userId={userId}
                   selectedText={grammarHelpText}
                   targetCefrLevel={normalizeWritingCefrLevel(targetCefrLevel)}
                   disabled={interactionLocked}
@@ -699,11 +691,23 @@ export function WritingEditor({
                 Complete
               </Button>
 
+              {content.length > MAX_WRITING_EVALUATION_CHARACTERS ? (
+                <p className="text-xs text-destructive sm:col-span-4" role="alert">
+                  AI feedback supports writing up to{" "}
+                  {MAX_WRITING_EVALUATION_CHARACTERS.toLocaleString()} characters. Shorten this
+                  draft before requesting feedback.
+                </p>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
                 disabled={
-                  sessionClosed || isEvaluating || isClosing || isLoading || !content.trim()
+                  sessionClosed ||
+                  isEvaluating ||
+                  isClosing ||
+                  isLoading ||
+                  !content.trim() ||
+                  content.length > MAX_WRITING_EVALUATION_CHARACTERS
                 }
                 onClick={() => {
                   void handleRequestFeedback();
@@ -746,7 +750,9 @@ export function WritingEditor({
         {writingFeedback ? (
           <div
             className="mt-6 flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/30 px-4 py-3"
+            role="status"
             aria-live="polite"
+            aria-atomic="true"
           >
             <div>
               <p className="text-sm font-medium">
@@ -768,7 +774,6 @@ export function WritingEditor({
 
         {writingFeedback ? (
           <WritingFeedback
-            userId={userId}
             revisionId={writingFeedback.revision.id}
             overall={writingFeedback.overall}
             explanations={writingFeedback.explanations}

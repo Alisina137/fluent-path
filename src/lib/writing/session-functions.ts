@@ -4,7 +4,6 @@ import { z } from "zod";
 import {
   abandonWritingSession,
   completeWritingSession,
-  getWritingSession,
   startWritingSession,
 } from "@/server/writing/sessions";
 
@@ -12,37 +11,17 @@ const cefrLevelSchema = z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]);
 
 const startWritingSessionInputSchema = z
   .object({
-    userId: z.string().uuid(),
     taskId: z.string().uuid().optional(),
-    title: z.string().trim().max(160).optional(),
-    writingType: z.string().trim().min(1).max(80).optional(),
+    title: z.string().trim().min(1).max(200).optional(),
+    writingType: z.string().trim().min(1).max(100).optional(),
     targetCefrLevel: cefrLevelSchema.optional(),
-    prompt: z.string().trim().max(4000).optional(),
+    prompt: z.string().trim().max(10_000).optional(),
   })
-  .superRefine((value, ctx) => {
-    if (value.taskId) {
-      return;
-    }
-
-    if (!value.writingType) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["writingType"],
-        message: "Writing type is required for custom writing.",
-      });
-    }
-
-    if (!value.targetCefrLevel) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["targetCefrLevel"],
-        message: "Target CEFR level is required for custom writing.",
-      });
-    }
+  .refine((data) => Boolean(data.taskId || data.title || data.writingType || data.prompt), {
+    message: "A writing task or custom writing details are required.",
   });
 
 const writingSessionInputSchema = z.object({
-  userId: z.string().uuid(),
   sessionId: z.string().uuid(),
 });
 
@@ -51,30 +30,11 @@ export const startWritingSessionServerFn = createServerFn({
 })
   .validator(startWritingSessionInputSchema)
   .handler(async ({ data }) => {
-    try {
-      return await startWritingSession(data.userId, {
-        taskId: data.taskId,
-        title: data.title,
-        writingType: data.writingType,
-        targetCefrLevel: data.targetCefrLevel,
-        prompt: data.prompt,
-      });
-    } catch (error) {
-      console.error("[writing:start-session] failed", {
-        name: error instanceof Error ? error.name : "UnknownError",
-        message: error instanceof Error ? error.message : String(error),
-      });
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
 
-      throw error;
-    }
-  });
+    const userId = await requireAuthenticatedUserId();
 
-export const getWritingSessionServerFn = createServerFn({
-  method: "GET",
-})
-  .validator(writingSessionInputSchema)
-  .handler(async ({ data }) => {
-    return getWritingSession(data.userId, data.sessionId);
+    return startWritingSession(userId, data);
   });
 
 export const completeWritingSessionServerFn = createServerFn({
@@ -82,7 +42,11 @@ export const completeWritingSessionServerFn = createServerFn({
 })
   .validator(writingSessionInputSchema)
   .handler(async ({ data }) => {
-    return completeWritingSession(data.userId, data.sessionId);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return completeWritingSession(userId, data.sessionId);
   });
 
 export const abandonWritingSessionServerFn = createServerFn({
@@ -90,5 +54,9 @@ export const abandonWritingSessionServerFn = createServerFn({
 })
   .validator(writingSessionInputSchema)
   .handler(async ({ data }) => {
-    return abandonWritingSession(data.userId, data.sessionId);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return abandonWritingSession(userId, data.sessionId);
   });

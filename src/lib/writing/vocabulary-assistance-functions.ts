@@ -5,8 +5,6 @@ import { requestVocabularySuggestions } from "@/server/writing/assistance/vocabu
 
 const vocabularySuggestionRequestSchema = z
   .object({
-    userId: z.string().uuid(),
-
     selectedText: z.string().trim().min(1).max(5_000),
 
     targetCefrLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
@@ -16,9 +14,13 @@ const vocabularySuggestionRequestSchema = z
 export const requestVocabularySuggestionsServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator((data: unknown) => vocabularySuggestionRequestSchema.parse(data))
+  .validator((data: unknown) => vocabularySuggestionRequestSchema.parse(data))
   .handler(async ({ data }) => {
-    return requestVocabularySuggestions(data.userId, {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return requestVocabularySuggestions(userId, {
       selectedText: data.selectedText,
       targetCefrLevel: data.targetCefrLevel,
     });

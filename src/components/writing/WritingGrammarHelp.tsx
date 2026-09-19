@@ -1,17 +1,17 @@
 import { CheckCircle2, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { useState } from "react";
 
+import { WritingNativeExplanation } from "@/components/writing/WritingNativeExplanation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requestGrammarHelpServerFn } from "@/lib/writing/grammar-assistance-functions";
-import { WritingNativeExplanation } from "@/components/writing/WritingNativeExplanation";
+
 type GrammarHelpResult = Awaited<ReturnType<typeof requestGrammarHelpServerFn>>;
 
 type WritingAssistanceCefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
 interface WritingGrammarHelpProps {
-  userId: string;
   selectedText: string;
   targetCefrLevel: WritingAssistanceCefrLevel;
   disabled?: boolean;
@@ -23,16 +23,13 @@ function formatCategory(value: string): string {
 }
 
 export function WritingGrammarHelp({
-  userId,
   selectedText,
   targetCefrLevel,
   disabled = false,
   onClearSelection,
 }: WritingGrammarHelpProps) {
   const [result, setResult] = useState<GrammarHelpResult | null>(null);
-
   const [error, setError] = useState<string | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleRequestGrammarHelp() {
@@ -47,7 +44,6 @@ export function WritingGrammarHelp({
     try {
       const response = await requestGrammarHelpServerFn({
         data: {
-          userId,
           selectedText,
           targetCefrLevel,
         },
@@ -67,12 +63,10 @@ export function WritingGrammarHelp({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="text-base">Grammar Help</CardTitle>
-
             <p className="mt-1 text-sm text-muted-foreground">
               Understand grammar in the text you selected.
             </p>
           </div>
-
           <Badge variant="outline">CEFR {targetCefrLevel}</Badge>
         </div>
       </CardHeader>
@@ -80,7 +74,6 @@ export function WritingGrammarHelp({
       <CardContent className="space-y-4">
         <div className="rounded-lg border bg-muted/30 p-3">
           <p className="text-xs font-medium text-muted-foreground">Selected text</p>
-
           <p className="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6">
             {selectedText}
           </p>
@@ -99,7 +92,6 @@ export function WritingGrammarHelp({
             ) : (
               <Sparkles aria-hidden="true" />
             )}
-
             {isLoading ? "Checking grammar..." : "Check grammar"}
           </Button>
 
@@ -122,15 +114,12 @@ export function WritingGrammarHelp({
           <div className="space-y-4 border-t pt-4" aria-live="polite">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
-
               <div>
                 <p className="font-medium">
                   {result.hasErrors ? "Grammar review complete" : "No grammar problems found"}
                 </p>
-
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.summary}</p>
                 <WritingNativeExplanation
-                  userId={userId}
                   englishExplanation={result.summary}
                   targetCefrLevel={targetCefrLevel}
                   context="grammar"
@@ -142,7 +131,6 @@ export function WritingGrammarHelp({
             {result.hasErrors ? (
               <div className="rounded-lg border p-3">
                 <p className="text-xs font-medium text-muted-foreground">Corrected version</p>
-
                 <p className="mt-2 whitespace-pre-wrap wrap-break-word text-sm leading-6">
                   {result.correctedText}
                 </p>
@@ -152,42 +140,32 @@ export function WritingGrammarHelp({
             {result.issues.length > 0 ? (
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold">What to learn</h4>
-
                 {result.issues.map((issue, index) => (
                   <div key={`${issue.category}-${index}`} className="rounded-lg border p-3">
                     <Badge variant="secondary">{formatCategory(issue.category)}</Badge>
-
                     <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div>
                         <dt className="text-xs font-medium text-muted-foreground">Your text</dt>
-
                         <dd className="mt-1 text-sm">{issue.originalText}</dd>
                       </div>
-
                       <div>
                         <dt className="text-xs font-medium text-muted-foreground">Correction</dt>
-
                         <dd className="mt-1 text-sm font-medium">{issue.correctedText}</dd>
                       </div>
                     </dl>
-
                     <div className="mt-3">
                       <p className="text-xs font-medium text-muted-foreground">Why?</p>
-
                       <p className="mt-1 text-sm leading-6">{issue.explanation}</p>
                       <WritingNativeExplanation
-                        userId={userId}
                         englishExplanation={issue.explanation}
                         targetCefrLevel={targetCefrLevel}
                         context="grammar"
                         disabled={disabled}
                       />
                     </div>
-
                     {issue.example ? (
                       <div className="mt-3 rounded-md bg-muted/40 p-3">
                         <p className="text-xs font-medium text-muted-foreground">Example</p>
-
                         <p className="mt-1 text-sm">{issue.example}</p>
                       </div>
                     ) : null}

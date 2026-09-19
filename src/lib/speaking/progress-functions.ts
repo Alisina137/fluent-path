@@ -8,7 +8,7 @@ const speakingSkillMetricsInputSchema = z.object({
 export const getSpeakingSkillMetricsServerFn = createServerFn({
   method: "GET",
 })
-  .inputValidator(speakingSkillMetricsInputSchema)
+  .validator(speakingSkillMetricsInputSchema)
   .handler(async ({ data }) => {
     const progressModule = await import("@/server/speaking/progress/skill-metrics");
 
@@ -24,7 +24,7 @@ const speakingSessionHistoryInputSchema = z.object({
 export const getSpeakingSessionHistoryServerFn = createServerFn({
   method: "GET",
 })
-  .inputValidator(speakingSessionHistoryInputSchema)
+  .validator(speakingSessionHistoryInputSchema)
   .handler(async ({ data }) => {
     const historyModule = await import("@/server/speaking/progress/session-history");
 
@@ -40,7 +40,7 @@ const speakingImprovementTrendsInputSchema = z.object({
 export const getSpeakingImprovementTrendsServerFn = createServerFn({
   method: "GET",
 })
-  .inputValidator(speakingImprovementTrendsInputSchema)
+  .validator(speakingImprovementTrendsInputSchema)
   .handler(async ({ data }) => {
     const trendModule = await import("@/server/speaking/progress/improvement-trends");
 

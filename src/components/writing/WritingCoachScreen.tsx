@@ -28,6 +28,8 @@ import {
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 
+const EXERCISES_PER_PAGE = 10;
+
 type CefrLevel = (typeof CEFR_LEVELS)[number];
 
 interface WritingTaskSnapshot {
@@ -128,6 +130,8 @@ export function WritingCoachScreen() {
 
   const [practiceFilters, setPracticeFilters] = useState<PracticeFilters>(EMPTY_FILTERS);
 
+  const [practicePage, setPracticePage] = useState(1);
+
   const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
 
   const [libraryError, setLibraryError] = useState<string | null>(null);
@@ -142,7 +146,6 @@ export function WritingCoachScreen() {
       return;
     }
 
-    const userId = user.id;
     let cancelled = false;
 
     async function loadPracticeLibrary() {
@@ -152,10 +155,11 @@ export function WritingCoachScreen() {
       try {
         const result = await getWritingPracticeLibraryServerFn({
           data: {
-            userId,
             cefrLevel: practiceFilters.cefrLevel ?? undefined,
             category: practiceFilters.category ?? undefined,
             writingType: practiceFilters.writingType ?? undefined,
+            page: practicePage,
+            pageSize: EXERCISES_PER_PAGE,
           },
         });
 
@@ -180,13 +184,7 @@ export function WritingCoachScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    user,
-    session,
-    practiceFilters.cefrLevel,
-    practiceFilters.category,
-    practiceFilters.writingType,
-  ]);
+  }, [user, session, practiceFilters, practicePage]);
 
   async function handleStartFreeWriting() {
     if (!user) {
@@ -200,7 +198,6 @@ export function WritingCoachScreen() {
     try {
       const created = await startWritingSessionServerFn({
         data: {
-          userId: user.id,
           title: "Free Writing",
           writingType: "free-writing",
           targetCefrLevel: selectedCefrLevel,
@@ -228,7 +225,6 @@ export function WritingCoachScreen() {
     try {
       const created = await startWritingSessionServerFn({
         data: {
-          userId: user.id,
           taskId,
         },
       });
@@ -253,7 +249,6 @@ export function WritingCoachScreen() {
     try {
       const updated = await completeWritingSessionServerFn({
         data: {
-          userId: user.id,
           sessionId: session.id,
         },
       });
@@ -277,7 +272,6 @@ export function WritingCoachScreen() {
     try {
       const updated = await abandonWritingSessionServerFn({
         data: {
-          userId: user.id,
           sessionId: session.id,
         },
       });
@@ -293,10 +287,12 @@ export function WritingCoachScreen() {
   function updateCefrFilter(cefrLevel: CefrLevel | null) {
     setSelectedPracticeTask(null);
 
-    setPracticeFilters((current) => ({
-      ...current,
+    setPracticeFilters({
       cefrLevel,
-    }));
+      category: null,
+      writingType: null,
+    });
+    setPracticePage(1);
   }
 
   function updateCategoryFilter(category: string | null) {
@@ -305,7 +301,9 @@ export function WritingCoachScreen() {
     setPracticeFilters((current) => ({
       ...current,
       category,
+      writingType: null,
     }));
+    setPracticePage(1);
   }
 
   function updateWritingTypeFilter(writingType: string | null) {
@@ -315,14 +313,39 @@ export function WritingCoachScreen() {
       ...current,
       writingType,
     }));
+    setPracticePage(1);
   }
 
   function resetPracticeFilters() {
     setSelectedPracticeTask(null);
     setPracticeFilters(EMPTY_FILTERS);
+    setPracticePage(1);
   }
 
   const filtersAreActive = hasActiveFilters(practiceFilters);
+
+  const visiblePracticeTasks = practiceLibrary?.tasks ?? [];
+
+  const categoryOptions = practiceLibrary?.facets.categories ?? [];
+
+  const writingTypeOptions = practiceLibrary?.facets.writingTypes ?? [];
+
+  const totalPracticeTasks = practiceLibrary?.pagination.totalItems ?? 0;
+
+  const totalPracticePages = practiceLibrary?.pagination.totalPages ?? 1;
+
+  const safePracticePage = practiceLibrary?.pagination.page ?? practicePage;
+
+  const pageSize = practiceLibrary?.pagination.pageSize ?? EXERCISES_PER_PAGE;
+
+  const practicePageStart = totalPracticeTasks === 0 ? 0 : (safePracticePage - 1) * pageSize;
+
+  const firstVisibleExercise = totalPracticeTasks === 0 ? 0 : practicePageStart + 1;
+
+  const lastVisibleExercise =
+    totalPracticeTasks === 0
+      ? 0
+      : Math.min(practicePageStart + visiblePracticeTasks.length, totalPracticeTasks);
 
   return (
     <main className="space-y-6" aria-labelledby="writing-coach-heading">
@@ -417,7 +440,6 @@ export function WritingCoachScreen() {
           </Card>
 
           <WritingEditor
-            userId={user.id}
             sessionId={session.id}
             sessionStatus={session.status}
             title={session.title}
@@ -440,7 +462,7 @@ export function WritingCoachScreen() {
           onStart={handleStartPracticeTask}
         />
       ) : user && activeView === "progress" ? (
-        <WritingProgressDashboard userId={user.id} />
+        <WritingProgressDashboard />
       ) : (
         <>
           <section
@@ -505,8 +527,7 @@ export function WritingCoachScreen() {
 
               {practiceLibrary ? (
                 <p className="text-sm text-muted-foreground" aria-live="polite">
-                  {practiceLibrary.tasks.length}{" "}
-                  {practiceLibrary.tasks.length === 1 ? "exercise" : "exercises"}
+                  {totalPracticeTasks} {totalPracticeTasks === 1 ? "exercise" : "exercises"}
                 </p>
               ) : null}
             </div>
@@ -576,7 +597,7 @@ export function WritingCoachScreen() {
                     </div>
                   </fieldset>
 
-                  {practiceLibrary.facets.categories.length > 0 ? (
+                  {categoryOptions.length > 0 ? (
                     <fieldset>
                       <legend className="text-sm font-medium">Category</legend>
 
@@ -593,7 +614,7 @@ export function WritingCoachScreen() {
                           All categories
                         </Button>
 
-                        {practiceLibrary.facets.categories.map((category) => (
+                        {categoryOptions.map((category) => (
                           <Button
                             key={category}
                             type="button"
@@ -611,7 +632,7 @@ export function WritingCoachScreen() {
                     </fieldset>
                   ) : null}
 
-                  {practiceLibrary.facets.writingTypes.length > 0 ? (
+                  {writingTypeOptions.length > 0 ? (
                     <fieldset>
                       <legend className="text-sm font-medium">Writing type</legend>
 
@@ -628,7 +649,7 @@ export function WritingCoachScreen() {
                           All types
                         </Button>
 
-                        {practiceLibrary.facets.writingTypes.map((writingType) => (
+                        {writingTypeOptions.map((writingType) => (
                           <Button
                             key={writingType}
                             type="button"
@@ -659,7 +680,7 @@ export function WritingCoachScreen() {
                   <p className="mt-3 font-medium">Sign in to browse practice exercises</p>
 
                   <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
-                    Sign in to access guided Writing Coach exercises.
+                    Sign in to access guided Writing Coach exercises.{" "}
                   </p>
                 </CardContent>
               </Card>
@@ -703,7 +724,7 @@ export function WritingCoachScreen() {
             !isLoadingLibrary &&
             !libraryError &&
             practiceLibrary &&
-            practiceLibrary.tasks.length === 0 ? (
+            totalPracticeTasks === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center">
                   <FileText className="mx-auto size-7 text-muted-foreground" aria-hidden="true" />
@@ -717,7 +738,7 @@ export function WritingCoachScreen() {
                   <p className="mx-auto mt-1 max-w-md text-sm leading-6 text-muted-foreground">
                     {filtersAreActive
                       ? "Try another level, category, or writing type."
-                      : "Guided exercises will appear here when they are available. You can continue practicing with free writing below."}
+                      : "Guided exercises will appear here when they are available. You can continue practicing with free writing below."}{" "}
                   </p>
 
                   {filtersAreActive ? (
@@ -739,72 +760,124 @@ export function WritingCoachScreen() {
             !isLoadingLibrary &&
             !libraryError &&
             practiceLibrary &&
-            practiceLibrary.tasks.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {practiceLibrary.tasks.map((task) => {
-                  const wordGoal = getWordGoal(task);
+            visiblePracticeTasks.length > 0 ? (
+              <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {visiblePracticeTasks.map((task) => {
+                    const wordGoal = getWordGoal(task);
 
-                  return (
-                    <Card key={task.id} className="flex h-full flex-col">
-                      <CardHeader className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="secondary">CEFR {task.cefrLevel}</Badge>
+                    return (
+                      <Card key={task.id} className="flex h-full flex-col">
+                        <CardHeader className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary">CEFR {task.cefrLevel}</Badge>
 
-                          <Badge variant="outline">{task.category}</Badge>
-                        </div>
+                            <Badge variant="outline">{task.category}</Badge>
+                          </div>
 
-                        <div>
-                          <CardTitle className="text-lg leading-6">{task.title}</CardTitle>
+                          <div>
+                            <CardTitle className="text-lg leading-6">{task.title}</CardTitle>
 
-                          <p className="mt-1 text-sm font-medium text-muted-foreground">
-                            {formatWritingType(task.writingType)}
+                            <p className="mt-1 text-sm font-medium text-muted-foreground">
+                              {formatWritingType(task.writingType)}
+                            </p>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="flex flex-1 flex-col">
+                          <p
+                            className="line-clamp-3 text-sm leading-6
+text-muted-foreground"
+                          >
+                            {task.description ?? task.prompt}
                           </p>
-                        </div>
-                      </CardHeader>
 
-                      <CardContent className="flex flex-1 flex-col">
-                        <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
-                          {task.description ?? task.prompt}
-                        </p>
+                          <dl className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                            {wordGoal ? (
+                              <div className="flex items-center gap-1.5">
+                                <Target className="size-3.5" aria-hidden="true" />
 
-                        <dl className="mt-5 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                          {wordGoal ? (
-                            <div className="flex items-center gap-1.5">
-                              <Target className="size-3.5" aria-hidden="true" />
+                                <dt className="sr-only">Word goal</dt>
 
-                              <dt className="sr-only">Word goal</dt>
+                                <dd>{wordGoal}</dd>
+                              </div>
+                            ) : null}
 
-                              <dd>{wordGoal}</dd>
-                            </div>
-                          ) : null}
+                            {task.estimatedMinutes !== null ? (
+                              <div className="flex items-center gap-1.5">
+                                <Clock3 className="size-3.5" aria-hidden="true" />
 
-                          {task.estimatedMinutes !== null ? (
-                            <div className="flex items-center gap-1.5">
-                              <Clock3 className="size-3.5" aria-hidden="true" />
+                                <dt className="sr-only">Estimated time</dt>
 
-                              <dt className="sr-only">Estimated time</dt>
+                                <dd>About {task.estimatedMinutes} min</dd>
+                              </div>
+                            ) : null}
+                          </dl>
 
-                              <dd>About {task.estimatedMinutes} min</dd>
-                            </div>
-                          ) : null}
-                        </dl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-5 w-full"
+                            onClick={() => {
+                              setSelectedPracticeTask(task);
+                              setOperationError(null);
+                            }}
+                          >
+                            <BookOpen aria-hidden="true" />
+                            View task
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-5 w-full"
-                          onClick={() => {
-                            setSelectedPracticeTask(task);
-                            setOperationError(null);
-                          }}
-                        >
-                          <BookOpen aria-hidden="true" />
-                          View task
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                <div className="space-y-3">
+                  <p
+                    className="text-center text-sm text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    Showing {firstVisibleExercise}-{lastVisibleExercise} of {totalPracticeTasks}{" "}
+                    exercises
+                  </p>
+
+                  {totalPracticePages > 1 ? (
+                    <nav
+                      className="flex flex-wrap items-center justify-center gap-2"
+                      aria-label="Practice exercise pagination"
+                    >
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safePracticePage === 1}
+                        onClick={() => {
+                          setPracticePage((current) => Math.max(1, current - 1));
+                        }}
+                      >
+                        Previous
+                      </Button>
+
+                      <span className="min-w-28 text-center text-sm font-medium">
+                        Page {safePracticePage} of {totalPracticePages}
+                      </span>
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safePracticePage === totalPracticePages}
+                        onClick={() => {
+                          setPracticePage((current) => Math.min(totalPracticePages, current + 1));
+                        }}
+                      >
+                        Next
+                      </Button>
+                    </nav>
+                  ) : null}
+                </div>
               </div>
             ) : null}
           </section>
@@ -816,6 +889,7 @@ export function WritingCoachScreen() {
 
             <CardContent className="space-y-5">
               <p className="text-sm leading-6 text-muted-foreground">
+                {" "}
                 Prefer to choose your own topic? Select the English level you want to practice and
                 start a free-writing session.
               </p>

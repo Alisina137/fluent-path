@@ -5,7 +5,6 @@ import { getWritingDraftServerFn, saveWritingDraftServerFn } from "@/lib/writing
 export type WritingAutosaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 interface UseWritingAutosaveOptions {
-  userId: string;
   sessionId: string;
   sessionStatus: "active" | "completed" | "abandoned";
   autosaveDelayMs?: number;
@@ -24,7 +23,6 @@ interface UseWritingAutosaveResult {
 }
 
 export function useWritingAutosave({
-  userId,
   sessionId,
   sessionStatus,
   autosaveDelayMs = 1200,
@@ -40,19 +38,23 @@ export function useWritingAutosave({
   const loadedRef = useRef(false);
   const contentRef = useRef("");
   const lastPersistedContentRef = useRef("");
-  const saveRequestIdRef = useRef(0);
+
+  const savePromiseRef = useRef<Promise<boolean> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     loadedRef.current = false;
+    contentRef.current = "";
+    lastPersistedContentRef.current = "";
+    savePromiseRef.current = null;
+
     setIsLoading(true);
     setError(null);
     setStatus("idle");
 
     void getWritingDraftServerFn({
       data: {
-        userId,
         sessionId,
       },
     })
@@ -89,36 +91,39 @@ export function useWritingAutosave({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, userId]);
+  }, [sessionId]);
 
-  const persistContent = useCallback(
-    async (contentToSave: string): Promise<boolean> => {
-      if (!loadedRef.current || sessionStatus !== "active") {
-        return false;
-      }
+  const persistContent = useCallback(async (): Promise<boolean> => {
+    if (!loadedRef.current || sessionStatus !== "active") {
+      return false;
+    }
 
-      if (contentToSave === lastPersistedContentRef.current) {
-        setStatus("saved");
+    if (savePromiseRef.current) {
+      await savePromiseRef.current;
+
+      if (contentRef.current === lastPersistedContentRef.current) {
         return true;
       }
+    }
 
-      const requestId = ++saveRequestIdRef.current;
+    if (contentRef.current === lastPersistedContentRef.current) {
+      setStatus("saved");
+      return true;
+    }
 
+    const contentToSave = contentRef.current;
+
+    const savePromise = (async (): Promise<boolean> => {
       setStatus("saving");
       setError(null);
 
       try {
         const result = await saveWritingDraftServerFn({
           data: {
-            userId,
             sessionId,
             content: contentToSave,
           },
         });
-
-        if (requestId !== saveRequestIdRef.current) {
-          return false;
-        }
 
         lastPersistedContentRef.current = result.draft.content;
 
@@ -134,17 +139,23 @@ export function useWritingAutosave({
         setStatus("unsaved");
         return false;
       } catch {
-        if (requestId !== saveRequestIdRef.current) {
-          return false;
-        }
-
         setStatus("error");
         setError("Your latest changes could not be saved.");
+
         return false;
       }
-    },
-    [sessionId, sessionStatus, userId],
-  );
+    })();
+
+    savePromiseRef.current = savePromise;
+
+    try {
+      return await savePromise;
+    } finally {
+      if (savePromiseRef.current === savePromise) {
+        savePromiseRef.current = null;
+      }
+    }
+  }, [sessionId, sessionStatus]);
 
   const setContent = useCallback((nextContent: string) => {
     contentRef.current = nextContent;
@@ -164,7 +175,13 @@ export function useWritingAutosave({
   }, []);
 
   const saveNow = useCallback(async () => {
-    return await persistContent(contentRef.current);
+    const firstSaveSucceeded = await persistContent();
+
+    if (!firstSaveSucceeded && contentRef.current !== lastPersistedContentRef.current) {
+      return persistContent();
+    }
+
+    return firstSaveSucceeded;
   }, [persistContent]);
 
   useEffect(() => {
@@ -173,7 +190,7 @@ export function useWritingAutosave({
     }
 
     const timeoutId = window.setTimeout(() => {
-      void persistContent(contentRef.current);
+      void persistContent();
     }, autosaveDelayMs);
 
     return () => {

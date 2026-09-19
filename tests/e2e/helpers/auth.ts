@@ -1,66 +1,86 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 
-const AUTH_STORAGE_KEY = "ael.session.v1";
+function getRequiredE2ECredentials() {
+  const email = process.env.E2E_USER_EMAIL?.trim();
+  const password = process.env.E2E_USER_PASSWORD?.trim();
 
-function getRequiredE2EUserId(): string {
-  const userId = process.env.E2E_USER_ID?.trim();
-
-  if (!userId) {
+  if (!email) {
     throw new Error(
-      "E2E_USER_ID is required. Add the UUID of an existing Neon development user to .env.local.",
+      "E2E_USER_EMAIL is required. Add the email of your dedicated E2E user to .env.local.",
     );
   }
 
-  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  if (!uuidPattern.test(userId)) {
+  if (!password) {
     throw new Error(
-      "E2E_USER_ID must be a valid UUID belonging to an existing Neon development user.",
+      "E2E_USER_PASSWORD is required. Add the password of your dedicated E2E user to .env.local.",
     );
   }
 
-  return userId;
+  return {
+    email,
+    password,
+  };
 }
 
 export async function installE2EAuthSession(page: Page): Promise<void> {
-  const userId = getRequiredE2EUserId();
+  const { email, password } = getRequiredE2ECredentials();
 
-  const session = {
-    user: {
-      id: userId,
-      name: "Fluent Path E2E",
-      email: "e2e@fluentpath.local",
-      created_at: new Date().toISOString(),
-    },
-    profile: {
-      user_id: userId,
-      english_level: "B1",
-      learning_goals: [],
-      daily_learning_time: 15,
-      learning_preferences: [],
-      onboarding_completed: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    language: {
-      user_id: userId,
-      native_language: "English",
-      native_language_code: "en",
-      translation_enabled: false,
-      preferred_translation_mode: "on_tap",
-    },
-    modules: [],
-    subscription: null,
-    onboarded: true,
-  };
+  await page.goto("/login", {
+    waitUntil: "networkidle",
+  });
 
-  await page.addInitScript(
-    ({ storageKey, serializedSession }: { storageKey: string; serializedSession: string }) => {
-      window.localStorage.setItem(storageKey, serializedSession);
-    },
+  const emailInput = page.getByLabel("Email");
+  const passwordInput = page.getByLabel("Password");
+  const signInButton = page.getByRole("button", {
+    name: "Sign in",
+  });
+
+  await expect(emailInput).toBeVisible();
+  await expect(passwordInput).toBeVisible();
+  await expect(signInButton).toBeEnabled();
+
+  await page.waitForFunction(() => document.readyState === "complete");
+
+  await page.waitForTimeout(500);
+
+  await emailInput.fill(email);
+  await passwordInput.fill(password);
+
+  const signInResponsePromise = page.waitForResponse(
+    (response) => response.request().method() === "POST" && response.url().includes("/_serverFn/"),
     {
-      storageKey: AUTH_STORAGE_KEY,
-      serializedSession: JSON.stringify(session),
+      timeout: 15_000,
     },
   );
+
+  await signInButton.click();
+
+  const signInResponse = await signInResponsePromise;
+
+  expect(signInResponse.ok()).toBe(true);
+
+  await expect
+    .poll(
+      async () => {
+        const cookies = await page.context().cookies();
+
+        return cookies.some(
+          (cookie) =>
+            cookie.name === "fluent_path_session" && cookie.httpOnly && cookie.value.length > 0,
+        );
+      },
+      {
+        timeout: 10_000,
+        message: "Expected authenticated session cookie to be created",
+      },
+    )
+    .toBe(true);
+
+  // Authentication is now proven complete. Navigate explicitly so E2E
+  // suites begin from a deterministic authenticated application state.
+  await page.goto("/dashboard");
+
+  await expect(page).toHaveURL(/\/dashboard(?:\/|$|\?)/, {
+    timeout: 15_000,
+  });
 }

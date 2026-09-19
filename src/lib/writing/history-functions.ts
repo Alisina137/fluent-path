@@ -6,7 +6,6 @@ import { getWritingHistory } from "@/server/writing/history";
 const writingSessionStatusSchema = z.enum(["active", "completed", "abandoned"]);
 
 const writingHistoryInputSchema = z.object({
-  userId: z.string().uuid(),
   status: writingSessionStatusSchema.optional(),
   limit: z.number().int().min(1).max(50).optional(),
   cursor: z
@@ -22,7 +21,11 @@ export const getWritingHistoryServerFn = createServerFn({
 })
   .validator(writingHistoryInputSchema)
   .handler(async ({ data }) => {
-    return getWritingHistory(data.userId, {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return getWritingHistory(userId, {
       status: data.status,
       limit: data.limit,
       cursor: data.cursor,

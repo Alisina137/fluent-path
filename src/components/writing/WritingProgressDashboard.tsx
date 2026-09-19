@@ -30,10 +30,6 @@ type ImprovementTrends = Awaited<ReturnType<typeof getWritingImprovementTrendsSe
 
 type TrendDirection = ImprovementTrends["trends"]["overall"]["direction"];
 
-interface WritingProgressDashboardProps {
-  userId: string;
-}
-
 interface ProgressData {
   metrics: SkillMetrics;
   history: SubmissionHistory;
@@ -112,7 +108,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
         aria-valuenow={Math.round(boundedScore)}
       >
         <div
-          className="h-full rounded-full bg-primary transition-[width]"
+          className="h-full rounded-full bg-primary motion-safe:transition-[width]"
           style={{
             width: `${boundedScore}%`,
           }}
@@ -151,7 +147,7 @@ function TrendSummary({
   );
 }
 
-export function WritingProgressDashboard({ userId }: WritingProgressDashboardProps) {
+export function WritingProgressDashboard() {
   const [data, setData] = useState<ProgressData | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -169,17 +165,11 @@ export function WritingProgressDashboard({ userId }: WritingProgressDashboardPro
 
       try {
         const [metrics, history, trends] = await Promise.all([
-          getWritingSkillMetricsServerFn({
-            data: { userId },
-          }),
+          getWritingSkillMetricsServerFn(),
 
-          getWritingSubmissionHistoryServerFn({
-            data: { userId },
-          }),
+          getWritingSubmissionHistoryServerFn(),
 
-          getWritingImprovementTrendsServerFn({
-            data: { userId },
-          }),
+          getWritingImprovementTrendsServerFn(),
         ]);
 
         if (!cancelled) {
@@ -205,7 +195,7 @@ export function WritingProgressDashboard({ userId }: WritingProgressDashboardPro
     return () => {
       cancelled = true;
     };
-  }, [reloadKey, userId]);
+  }, [reloadKey]);
 
   if (isLoading) {
     return (

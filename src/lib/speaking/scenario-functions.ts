@@ -102,7 +102,7 @@ export type GenerateCustomSpeakingScenarioServerResult =
 export const generateCustomSpeakingScenarioServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(generateCustomSpeakingScenarioInputSchema)
+  .validator(generateCustomSpeakingScenarioInputSchema)
   .handler(async ({ data }): Promise<GenerateCustomSpeakingScenarioServerResult> => {
     try {
       const customModule = await import("@/server/speaking/scenarios/custom/resolver");
@@ -207,7 +207,7 @@ const getSpeakingScenarioInputSchema = z.object({
 export const listSpeakingScenariosServerFn = createServerFn({
   method: "GET",
 })
-  .inputValidator(listSpeakingScenariosInputSchema)
+  .validator(listSpeakingScenariosInputSchema)
   .handler(async ({ data }) => {
     const scenarioModule = await import("@/server/speaking/scenarios/service");
 
@@ -229,7 +229,7 @@ export const listSpeakingScenariosServerFn = createServerFn({
 export const getSpeakingScenarioServerFn = createServerFn({
   method: "GET",
 })
-  .inputValidator(getSpeakingScenarioInputSchema)
+  .validator(getSpeakingScenarioInputSchema)
   .handler(async ({ data }) => {
     const scenarioModule = await import("@/server/speaking/scenarios/service");
 

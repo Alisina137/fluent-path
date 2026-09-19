@@ -2,79 +2,60 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { createOrReuseWritingRevision } from "@/server/writing/revisions";
-
 import { evaluateWritingRevision } from "@/server/writing/evaluation/service";
-
 import { validateWritingProviderEvaluation } from "@/server/writing/evaluation/schema";
-
-import { buildOverallWritingFeedback } from "@/server/writing/feedback/overall-feedback";
-
-import { normalizeWritingFeedback } from "@/server/writing/feedback/normalize";
-
-import { buildSentenceFeedback } from "@/server/writing/feedback/sentence-feedback";
-
 import { buildWritingFeedbackExplanations } from "@/server/writing/feedback/explanations";
+import { normalizeWritingFeedback } from "@/server/writing/feedback/normalize";
+import { buildOverallWritingFeedback } from "@/server/writing/feedback/overall-feedback";
+import { buildSentenceFeedback } from "@/server/writing/feedback/sentence-feedback";
 
 import type { WritingEvaluationResult } from "@/server/writing/evaluation/types";
 
-const requestWritingFeedbackInputSchema = z.object({
-  userId: z.string().min(1),
-  sessionId: z.string().uuid(),
-});
+const requestWritingFeedbackInputSchema = z
+  .object({
+    sessionId: z.string().uuid(),
+  })
+  .strict();
 
-export const requestWritingFeedbackServerFn = createServerFn({ method: "POST" })
+export const requestWritingFeedbackServerFn = createServerFn({
+  method: "POST",
+})
   .validator(requestWritingFeedbackInputSchema)
   .handler(async ({ data }) => {
-    try {
-      const revisionResult = await createOrReuseWritingRevision(data.userId, data.sessionId);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
 
-      const revision = revisionResult.revision;
+    const userId = await requireAuthenticatedUserId();
 
-      const storedOrResult = await evaluateWritingRevision(data.userId, revision.id);
+    const revisionResult = await createOrReuseWritingRevision(userId, data.sessionId);
 
-      const evaluation = normalizeEvaluationResult(storedOrResult, revision.content);
+    const revision = revisionResult.revision;
 
-      const feedback = normalizeWritingFeedback(evaluation);
+    const storedOrResult = await evaluateWritingRevision(userId, revision.id);
 
-      const overall = buildOverallWritingFeedback(evaluation, feedback);
+    const evaluation = normalizeEvaluationResult(storedOrResult, revision.content);
 
-      const sentenceFeedback = buildSentenceFeedback(revision.content, feedback);
+    const feedback = normalizeWritingFeedback(evaluation);
 
-      const explanations = buildWritingFeedbackExplanations(feedback.items);
+    return {
+      revision: {
+        id: revision.id,
+        revisionNumber: revision.revisionNumber,
+        content: revision.content,
+        wordCount: revision.wordCount,
+        characterCount: revision.characterCount,
+        created: revisionResult.created,
+      },
 
-      return {
-        revision: {
-          id: revision.id,
-          revisionNumber: revision.revisionNumber,
-          content: revision.content,
-          wordCount: revision.wordCount,
-          characterCount: revision.characterCount,
-          created: revisionResult.created,
-        },
+      evaluation,
 
-        evaluation,
-        feedback,
-        overall,
-        sentenceFeedback,
-        explanations,
-      };
-    } catch (error) {
-      console.error("[writing-feedback] request failed", {
-        errorName: error instanceof Error ? error.name : "UnknownError",
+      feedback,
 
-        errorMessage: error instanceof Error ? error.message : "Unknown writing feedback error",
+      overall: buildOverallWritingFeedback(evaluation, feedback),
 
-        errorCode:
-          error && typeof error === "object" && "code" in error ? String(error.code) : undefined,
+      sentenceFeedback: buildSentenceFeedback(revision.content, feedback),
 
-        retryable:
-          error && typeof error === "object" && "retryable" in error
-            ? Boolean(error.retryable)
-            : undefined,
-      });
-
-      throw error;
-    }
+      explanations: buildWritingFeedbackExplanations(feedback.items),
+    };
   });
 
 function normalizeEvaluationResult(
@@ -88,11 +69,8 @@ function normalizeEvaluationResult(
       ...providerEvaluation,
 
       overallScore: value.overallScore,
-
       provider: value.provider,
-
       model: value.model,
-
       providerRequestId: value.providerRequestId,
     };
   }

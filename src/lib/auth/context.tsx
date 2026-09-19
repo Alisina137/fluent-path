@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from "react";
 
-import { signInServerFn, signUpServerFn } from "@/lib/auth/functions";
+import {
+  getCurrentAccountServerFn,
+  signInServerFn,
+  signOutServerFn,
+  signUpServerFn,
+} from "@/lib/auth/functions";
 import { completeOnboardingServerFn } from "@/lib/auth/onboarding-functions";
 import type {
   Subscription,
@@ -57,30 +62,6 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const STORAGE_KEY = "ael.session.v1";
-
-function loadSession(): Session | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-
-    return raw ? (JSON.parse(raw) as Session) : null;
-  } catch {
-    return null;
-  }
-}
-
-function persist(session: Session | null) {
-  if (typeof window === "undefined") return;
-
-  if (session) {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
-  } else {
-    window.localStorage.removeItem(STORAGE_KEY);
-  }
-}
-
 function createSessionFromServerUser(user: {
   id: string;
   email: string;
@@ -124,13 +105,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setSession(loadSession());
-    setHydrated(true);
+    let active = true;
+
+    void getCurrentAccountServerFn()
+      .then((user) => {
+        if (!active) {
+          return;
+        }
+
+        setSession(user ? createSessionFromServerUser(user) : null);
+      })
+      .finally(() => {
+        if (active) {
+          setHydrated(true);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const update = useCallback((next: Session | null) => {
     setSession(next);
-    persist(next);
   }, []);
 
   const signUp = useCallback<AuthContextValue["signUp"]>(
@@ -163,8 +160,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(() => {
-    update(null);
-  }, [update]);
+    void signOutServerFn().finally(() => {
+      setSession(null);
+    });
+  }, []);
 
   const updateUser = useCallback<AuthContextValue["updateUser"]>((patch) => {
     setSession((prev) => {
@@ -177,8 +176,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...patch,
         },
       };
-
-      persist(next);
 
       return next;
     });
@@ -199,8 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           updated_at: new Date().toISOString(),
         },
       };
-
-      persist(next);
 
       return next;
     });
@@ -227,8 +222,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      persist(next);
-
       return next;
     });
   }, []);
@@ -248,8 +241,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const result = await completeOnboardingServerFn({
       data: {
-        userId: session.user.id,
-
         englishLevel: session.profile.english_level,
 
         learningGoals: session.profile.learning_goals,
@@ -278,8 +269,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onboarded: true,
       };
 
-      persist(next);
-
       return next;
     });
   }, [session]);
@@ -301,8 +290,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...prev,
           modules,
         };
-
-        persist(next);
 
         return next;
       });

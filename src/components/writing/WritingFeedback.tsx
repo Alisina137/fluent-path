@@ -16,7 +16,6 @@ export interface WritingSuggestionApplyResult {
 }
 
 interface WritingFeedbackProps {
-  userId: string;
   revisionId: string;
   overall: WritingOverallFeedback;
   explanations: WritingFeedbackExplanation[];
@@ -28,7 +27,6 @@ interface WritingFeedbackProps {
 }
 
 export function WritingFeedback({
-  userId,
   revisionId,
   overall,
   explanations,
@@ -157,7 +155,6 @@ export function WritingFeedback({
               {explanations.map((item) => (
                 <FeedbackItem
                   key={item.feedbackId}
-                  userId={userId}
                   revisionId={revisionId}
                   item={item}
                   canApplySuggestions={canApplySuggestions}
@@ -204,7 +201,6 @@ export function WritingFeedback({
 }
 
 interface FeedbackItemProps {
-  userId: string;
   revisionId: string;
   item: WritingFeedbackExplanation;
   canApplySuggestions: boolean;
@@ -215,7 +211,6 @@ interface FeedbackItemProps {
 }
 
 function FeedbackItem({
-  userId,
   revisionId,
   item,
   canApplySuggestions,
@@ -246,7 +241,6 @@ function FeedbackItem({
     try {
       const result = await requestWritingRewriteServerFn({
         data: {
-          userId,
           revisionId,
           feedbackId: item.feedbackId,
         },

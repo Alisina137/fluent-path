@@ -4,7 +4,6 @@ import { z } from "zod";
 import { getWritingDraft, saveWritingDraft } from "@/server/writing/drafts";
 
 const writingDraftSessionInputSchema = z.object({
-  userId: z.string().uuid(),
   sessionId: z.string().uuid(),
 });
 
@@ -17,7 +16,11 @@ export const getWritingDraftServerFn = createServerFn({
 })
   .validator(writingDraftSessionInputSchema)
   .handler(async ({ data }) => {
-    return getWritingDraft(data.userId, data.sessionId);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return getWritingDraft(userId, data.sessionId);
   });
 
 export const saveWritingDraftServerFn = createServerFn({
@@ -25,5 +28,9 @@ export const saveWritingDraftServerFn = createServerFn({
 })
   .validator(saveWritingDraftInputSchema)
   .handler(async ({ data }) => {
-    return saveWritingDraft(data.userId, data.sessionId, data.content);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return saveWritingDraft(userId, data.sessionId, data.content);
   });

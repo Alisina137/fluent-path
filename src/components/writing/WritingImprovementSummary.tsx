@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { ArrowRight, Minus, TrendingDown, TrendingUp } from "lucide-react";
 
 import type {
@@ -11,13 +12,11 @@ interface WritingImprovementSummaryProps {
 }
 
 export function WritingImprovementSummary({ improvement }: WritingImprovementSummaryProps) {
+  const headingId = useId();
   if (!improvement.available || !improvement.overall || !improvement.classification) {
     return (
-      <section
-        className="rounded-lg border bg-muted/20 p-4"
-        aria-labelledby="writing-improvement-heading"
-      >
-        <h4 id="writing-improvement-heading" className="font-medium">
+      <section className="rounded-lg border bg-muted/20 p-4" aria-labelledby={headingId}>
+        <h4 id={headingId} className="font-medium">
           Improvement measurement
         </h4>
 
@@ -29,12 +28,9 @@ export function WritingImprovementSummary({ improvement }: WritingImprovementSum
   }
 
   return (
-    <section
-      className="space-y-4 rounded-xl border p-4"
-      aria-labelledby="writing-improvement-heading"
-    >
+    <section className="space-y-4 rounded-xl border p-4" aria-labelledby={headingId}>
       <div>
-        <h4 id="writing-improvement-heading" className="font-semibold">
+        <h4 id={headingId} className="font-semibold">
           Your improvement
         </h4>
 

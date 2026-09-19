@@ -11,7 +11,6 @@ type VocabularyCefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 type VocabularySuggestionResult = Awaited<ReturnType<typeof requestVocabularySuggestionsServerFn>>;
 
 interface WritingVocabularySuggestionsProps {
-  userId: string;
   selectedText: string;
   targetCefrLevel: VocabularyCefrLevel;
   disabled?: boolean;
@@ -22,7 +21,6 @@ function formatSuggestionKind(value: string): string {
 }
 
 export function WritingVocabularySuggestions({
-  userId,
   selectedText,
   targetCefrLevel,
   disabled = false,
@@ -45,7 +43,6 @@ export function WritingVocabularySuggestions({
     try {
       const response = await requestVocabularySuggestionsServerFn({
         data: {
-          userId,
           selectedText,
           targetCefrLevel,
         },
@@ -127,7 +124,6 @@ export function WritingVocabularySuggestions({
 
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{result.summary}</p>
                 <WritingNativeExplanation
-                  userId={userId}
                   englishExplanation={result.summary}
                   targetCefrLevel={targetCefrLevel}
                   context="vocabulary"
@@ -166,7 +162,6 @@ export function WritingVocabularySuggestions({
 
                       <p className="mt-1 text-sm leading-6">{suggestion.explanation}</p>
                       <WritingNativeExplanation
-                        userId={userId}
                         englishExplanation={suggestion.explanation}
                         targetCefrLevel={targetCefrLevel}
                         context="vocabulary"

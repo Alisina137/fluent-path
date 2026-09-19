@@ -23,7 +23,6 @@ type NativeExplanationCefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 type NativeExplanationContext = "grammar" | "vocabulary" | "tone" | "paraphrasing" | "general";
 
 interface WritingNativeExplanationProps {
-  userId: string;
   englishExplanation: string;
   targetCefrLevel: NativeExplanationCefrLevel;
   context: NativeExplanationContext;
@@ -75,7 +74,6 @@ function getLanguageDirection(language: NativeExplanationLanguage): "ltr" | "rtl
 }
 
 export function WritingNativeExplanation({
-  userId,
   englishExplanation,
   targetCefrLevel,
   context,
@@ -109,7 +107,6 @@ export function WritingNativeExplanation({
     try {
       const response = await requestNativeExplanationServerFn({
         data: {
-          userId,
           englishExplanation,
           targetLanguage,
           targetCefrLevel,

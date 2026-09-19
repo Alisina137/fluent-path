@@ -65,12 +65,10 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const userId = session?.user.id ?? null;
-  const userEmail = session?.user.email ?? null;
-  const userName = session?.user.name ?? null;
+  const isAuthenticated = Boolean(session?.user);
 
   const refreshModules = useCallback(async () => {
-    if (!userId) {
+    if (!isAuthenticated) {
       setModules([]);
       setError(null);
       setIsLoading(false);
@@ -81,19 +79,16 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
     setError(null);
 
     try {
-      const result = await getUserModulesServerFn({
-        data: {
-          userId,
-        },
-      });
+      const result = await getUserModulesServerFn();
 
       setModules(result as ServerUserModule[]);
     } catch {
+      setModules([]);
       setError("Your module subscriptions could not be loaded.");
     } finally {
       setIsLoading(false);
     }
-  }, [userId]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     void refreshModules();
@@ -101,22 +96,19 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
   const subscribeModule = useCallback(
     async (moduleId: ModuleId) => {
-      if (!userId || !userEmail || !userName) {
+      if (!isAuthenticated) {
         throw new Error("Authentication is required.");
       }
 
       await activateDevelopmentModuleServerFn({
         data: {
-          userId,
-          email: userEmail,
-          name: userName,
           moduleId,
         },
       });
 
       await refreshModules();
     },
-    [refreshModules, userEmail, userId, userName],
+    [isAuthenticated, refreshModules],
   );
 
   const renewModule = useCallback(
@@ -128,31 +120,29 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
 
   const cancelModule = useCallback(
     async (moduleId: ModuleId) => {
-      if (!userId) {
+      if (!isAuthenticated) {
         throw new Error("Authentication is required.");
       }
 
       await cancelDevelopmentModuleServerFn({
         data: {
-          userId,
           moduleId,
         },
       });
 
       await refreshModules();
     },
-    [refreshModules, userId],
+    [isAuthenticated, refreshModules],
   );
 
   const markModuleOpened = useCallback(
     async (moduleId: ModuleId) => {
-      if (!userId) {
+      if (!isAuthenticated) {
         return;
       }
 
       await markDevelopmentModuleOpenedServerFn({
         data: {
-          userId,
           moduleId,
         },
       });
@@ -168,7 +158,7 @@ export function ModuleProvider({ children }: { children: ReactNode }) {
         ),
       );
     },
-    [userId],
+    [isAuthenticated],
   );
 
   const findModule = useCallback(

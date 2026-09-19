@@ -1,4 +1,4 @@
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, count, eq, type SQL } from "drizzle-orm";
 
 import { getDb } from "@/db/client";
 import { writingTasks } from "@/db/schema";
@@ -9,10 +9,15 @@ export const writingPracticeCefrLevels = ["A1", "A2", "B1", "B2", "C1", "C2"] as
 
 export type WritingPracticeCefrLevel = (typeof writingPracticeCefrLevels)[number];
 
+export const WRITING_PRACTICE_DEFAULT_PAGE_SIZE = 10;
+export const WRITING_PRACTICE_MAX_PAGE_SIZE = 50;
+
 export interface WritingPracticeLibraryFilters {
   cefrLevel?: WritingPracticeCefrLevel;
   category?: string;
   writingType?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface WritingPracticeLibraryTask {
@@ -38,15 +43,39 @@ export interface WritingPracticeLibraryFacets {
   writingTypes: string[];
 }
 
+export interface WritingPracticeLibraryPagination {
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+}
+
 export interface WritingPracticeLibraryResult {
   tasks: WritingPracticeLibraryTask[];
   facets: WritingPracticeLibraryFacets;
+  pagination: WritingPracticeLibraryPagination;
 }
 
 function normalizeOptionalFilter(value: string | undefined): string | undefined {
   const normalized = value?.trim();
 
   return normalized || undefined;
+}
+
+function normalizePage(value: number | undefined): number {
+  if (!value || !Number.isInteger(value) || value < 1) {
+    return 1;
+  }
+
+  return value;
+}
+
+function normalizePageSize(value: number | undefined): number {
+  if (!value || !Number.isInteger(value) || value < 1) {
+    return WRITING_PRACTICE_DEFAULT_PAGE_SIZE;
+  }
+
+  return Math.min(value, WRITING_PRACTICE_MAX_PAGE_SIZE);
 }
 
 function buildTaskConditions(filters: WritingPracticeLibraryFilters): SQL[] {
@@ -66,6 +95,28 @@ function buildTaskConditions(filters: WritingPracticeLibraryFilters): SQL[] {
 
   if (writingType) {
     conditions.push(eq(writingTasks.writingType, writingType));
+  }
+
+  return conditions;
+}
+
+function buildCategoryFacetConditions(filters: WritingPracticeLibraryFilters): SQL[] {
+  const conditions: SQL[] = [eq(writingTasks.isActive, 1)];
+
+  if (filters.cefrLevel) {
+    conditions.push(eq(writingTasks.cefrLevel, filters.cefrLevel));
+  }
+
+  return conditions;
+}
+
+function buildWritingTypeFacetConditions(filters: WritingPracticeLibraryFilters): SQL[] {
+  const conditions = buildCategoryFacetConditions(filters);
+
+  const category = normalizeOptionalFilter(filters.category);
+
+  if (category) {
+    conditions.push(eq(writingTasks.category, category));
   }
 
   return conditions;
@@ -98,53 +149,85 @@ export async function getWritingPracticeLibrary(
 
   const db = getDb();
 
-  const conditions = buildTaskConditions(filters);
+  const page = normalizePage(filters.page);
+  const pageSize = normalizePageSize(filters.pageSize);
 
-  let tasks: (typeof writingTasks.$inferSelect)[];
-  let facetRows: { cefrLevel: string; category: string; writingType: string }[];
+  const taskConditions = buildTaskConditions(filters);
+  const categoryFacetConditions = buildCategoryFacetConditions(filters);
+  const writingTypeFacetConditions = buildWritingTypeFacetConditions(filters);
 
   try {
-    [tasks, facetRows] = await Promise.all([
+    const [tasks, totalRows, cefrRows, categoryRows, writingTypeRows] = await Promise.all([
       db
         .select()
         .from(writingTasks)
-        .where(and(...conditions))
-        .orderBy(asc(writingTasks.sortOrder), asc(writingTasks.title)),
+        .where(and(...taskConditions))
+        .orderBy(asc(writingTasks.sortOrder), asc(writingTasks.title))
+        .limit(pageSize)
+        .offset((page - 1) * pageSize),
 
       db
         .select({
+          count: count(),
+        })
+        .from(writingTasks)
+        .where(and(...taskConditions)),
+
+      db
+        .selectDistinct({
           cefrLevel: writingTasks.cefrLevel,
-          category: writingTasks.category,
-          writingType: writingTasks.writingType,
         })
         .from(writingTasks)
         .where(eq(writingTasks.isActive, 1)),
+
+      db
+        .selectDistinct({
+          category: writingTasks.category,
+        })
+        .from(writingTasks)
+        .where(and(...categoryFacetConditions))
+        .orderBy(asc(writingTasks.category)),
+
+      db
+        .selectDistinct({
+          writingType: writingTasks.writingType,
+        })
+        .from(writingTasks)
+        .where(and(...writingTypeFacetConditions))
+        .orderBy(asc(writingTasks.writingType)),
     ]);
+
+    const totalItems = Number(totalRows[0]?.count ?? 0);
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    const cefrSet = new Set(cefrRows.map((row) => row.cefrLevel));
+
+    const categories = categoryRows.map((row) => row.category.trim()).filter(Boolean);
+
+    const writingTypes = writingTypeRows.map((row) => row.writingType.trim()).filter(Boolean);
+
+    return {
+      tasks: tasks.map(mapTask),
+
+      facets: {
+        cefrLevels: writingPracticeCefrLevels.filter((level) => cefrSet.has(level)),
+        categories,
+        writingTypes,
+      },
+
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+      },
+    };
   } catch (error) {
     console.error("[practice-library] query failed", error);
     console.error("[practice-library] cause", (error as { cause?: unknown })?.cause);
+
     throw error;
   }
-
-  const cefrSet = new Set(facetRows.map((row) => row.cefrLevel));
-
-  const categories = [...new Set(facetRows.map((row) => row.category.trim()).filter(Boolean))].sort(
-    (a, b) => a.localeCompare(b),
-  );
-
-  const writingTypes = [
-    ...new Set(facetRows.map((row) => row.writingType.trim()).filter(Boolean)),
-  ].sort((a, b) => a.localeCompare(b));
-
-  return {
-    tasks: tasks.map(mapTask),
-
-    facets: {
-      cefrLevels: writingPracticeCefrLevels.filter((level) => cefrSet.has(level)),
-      categories,
-      writingTypes,
-    },
-  };
 }
 
 export async function getWritingPracticeTask(

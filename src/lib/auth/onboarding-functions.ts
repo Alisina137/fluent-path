@@ -30,29 +30,27 @@ const dailyLearningTimeSchema = z.union([
 const translationModeSchema = z.enum(["instant", "on_tap", "side_by_side", "off"]);
 
 const completeOnboardingSchema = z.object({
-  userId: z.string().uuid(),
-
   englishLevel: englishLevelSchema.nullable(),
-
   learningGoals: z.array(learningGoalSchema),
-
   dailyLearningTime: dailyLearningTimeSchema,
-
   learningPreferences: z.array(learningStyleSchema),
-
   nativeLanguage: z.string().trim().min(1).max(100),
-
   nativeLanguageCode: z.string().trim().min(2).max(20),
-
   translationEnabled: z.boolean(),
-
   preferredTranslationMode: translationModeSchema,
 });
 
 export const completeOnboardingServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(completeOnboardingSchema)
+  .validator(completeOnboardingSchema)
   .handler(async ({ data }) => {
-    return completeUserOnboarding(data);
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return completeUserOnboarding({
+      ...data,
+      userId,
+    });
   });

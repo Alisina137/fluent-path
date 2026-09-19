@@ -142,7 +142,7 @@ function safeVocabularyErrorMessage(code: VocabularyFeedbackFailureCode): string
 export const evaluateSpeakingVocabularyServerFn = createServerFn({
   method: "POST",
 })
-  .inputValidator(vocabularyEvaluationInputSchema)
+  .validator(vocabularyEvaluationInputSchema)
   .handler(async ({ data }): Promise<VocabularyFeedbackServerResult> => {
     try {
       const [messagesModule, vocabularyModule] = await Promise.all([

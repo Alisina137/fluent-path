@@ -6,10 +6,7 @@ import { writingAssistanceCefrLevels } from "@/server/writing/assistance/types";
 
 const grammarHelpInputSchema = z
   .object({
-    userId: z.string().uuid(),
-
     selectedText: z.string().trim().min(1).max(5_000),
-
     targetCefrLevel: z.enum(writingAssistanceCefrLevels),
   })
   .strict();
@@ -19,7 +16,11 @@ export const requestGrammarHelpServerFn = createServerFn({
 })
   .validator(grammarHelpInputSchema)
   .handler(async ({ data }) => {
-    return requestGrammarHelp(data.userId, {
+    const { requireAuthenticatedUserId } = await import("@/server/auth/session");
+
+    const userId = await requireAuthenticatedUserId();
+
+    return requestGrammarHelp(userId, {
       selectedText: data.selectedText,
       targetCefrLevel: data.targetCefrLevel,
     });

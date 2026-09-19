@@ -122,3 +122,25 @@ export async function authenticateAccount(input: SignInAccountInput): Promise<Au
 
   return mapAuthenticatedUser(account.user, account.onboardingCompleted);
 }
+
+export async function getAuthenticatedAccountById(
+  userId: string,
+): Promise<AuthenticatedUser | null> {
+  const db = getDb();
+
+  const [account] = await db
+    .select({
+      user: users,
+      onboardingCompleted: userProfiles.onboardingCompleted,
+    })
+    .from(users)
+    .innerJoin(userProfiles, eq(userProfiles.userId, users.id))
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!account) {
+    return null;
+  }
+
+  return mapAuthenticatedUser(account.user, account.onboardingCompleted);
+}
