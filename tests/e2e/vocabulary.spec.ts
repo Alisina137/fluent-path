@@ -29,5 +29,11 @@ test.describe("Vocabulary Builder", () => {
     ).toBeVisible({
       timeout: 20_000,
     });
+
+    await expect(page.getByRole("navigation", { name: "Vocabulary pagination" })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/Showing 1–30 of/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
   });
 });
