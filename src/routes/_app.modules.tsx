@@ -123,6 +123,12 @@ function ModulesPage() {
       return;
     }
 
+    if (id === "listening") {
+      setPreviewId(null);
+      void navigate({ to: "/listening" });
+      return;
+    }
+
     setPreviewId(null);
     void navigate({ to: "/my-learning" });
   }
