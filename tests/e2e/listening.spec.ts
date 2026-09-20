@@ -11,14 +11,15 @@ test.describe("Listening Lab", () => {
   test("renders the authenticated Listening Lab access state", async ({ page }) => {
     await installE2EAuthSession(page);
 
-    // Authentication finishes on /dashboard, where providers immediately load
-    // account/module data. Let those requests settle before starting another
-    // full document navigation; otherwise Vite's dev SSR server can observe
-    // an aborted request (ECONNRESET) while Playwright leaves the page.
-    await page.waitForLoadState("networkidle");
+    // TanStack/Vite development pages can keep background/provider requests
+    // active, so "networkidle" is not a reliable readiness signal here.
+    // Give the authenticated dashboard a brief chance to settle, then navigate
+    // on DOM readiness and assert the actual Listening Lab UI state.
+    await page.waitForTimeout(750);
 
     await page.goto("/listening", {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
+      timeout: 20_000,
     });
 
     const activeHeading = page.getByRole("heading", {
