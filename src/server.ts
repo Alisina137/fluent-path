@@ -1,6 +1,3 @@
-import "./lib/error-capture";
-
-import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
 type ServerEntry = {
@@ -41,7 +38,10 @@ function isAbortLikeError(error: unknown): boolean {
     return true;
   }
 
-  if (typeof candidate.message === "string" && candidate.message.toLowerCase() === "aborted") {
+  if (
+    typeof candidate.message === "string" &&
+    candidate.message.toLowerCase() === "aborted"
+  ) {
     return true;
   }
 
@@ -52,81 +52,16 @@ function isAbortLikeError(error: unknown): boolean {
   return false;
 }
 
-function isH3SwallowedErrorBody(body: string): boolean {
-  try {
-    const payload = JSON.parse(body) as {
-      unhandled?: unknown;
-      message?: unknown;
-    };
-
-    return payload.unhandled === true && payload.message === "HTTPError";
-  } catch {
-    return false;
-  }
-}
-
-// h3 can convert an in-handler throw into a normal 500 JSON response.
-// Normalize genuine catastrophic SSR failures into the application's
-// HTML error page, while ignoring expected client-disconnect noise.
-async function normalizeCatastrophicSsrResponse(
-  response: Response,
-  request: Request,
-): Promise<Response> {
-  if (response.status < 500) {
-    return response;
-  }
-
-  const contentType = response.headers.get("content-type") ?? "";
-
-  if (!contentType.includes("application/json")) {
-    return response;
-  }
-
-  const body = await response.clone().text();
-
-  if (!isH3SwallowedErrorBody(body)) {
-    return response;
-  }
-
-  // A browser/navigation/client disconnect can be converted by h3 into a
-  // generic 500 JSON response before it reaches this wrapper. The Request
-  // signal is the most reliable way to correlate that response with the
-  // client abort; do not promote expected disconnects into catastrophic SSR
-  // failures.
-  if (request.signal.aborted) {
-    consumeLastCapturedError();
-
-    return new Response(null, {
-      status: 499,
-    });
-  }
-
-  const capturedError = consumeLastCapturedError();
-
-  if (capturedError && isAbortLikeError(capturedError)) {
-    return new Response(null, {
-      status: 499,
-    });
-  }
-
-  console.error(capturedError ?? new Error("A catastrophic SSR error was captured."));
-
-  return new Response(renderErrorPage(), {
-    status: 500,
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-    },
-  });
-}
-
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
 
-      const response = await handler.fetch(request, env, ctx);
-
-      return await normalizeCatastrophicSsrResponse(response, request);
+      // Let TanStack/H3 own responses that it has already normalized.
+      // Reinterpreting an H3 500 here is unsafe because client disconnects
+      // (ECONNRESET) can be converted into a generic 500 before this wrapper
+      // sees them, making them indistinguishable from genuine SSR failures.
+      return await handler.fetch(request, env, ctx);
     } catch (error) {
       if (isAbortLikeError(error)) {
         return new Response(null, {
