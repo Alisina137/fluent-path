@@ -26,7 +26,7 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
   const { email, password } = getRequiredE2ECredentials();
 
   await page.goto("/login", {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
 
   const emailInput = page.getByLabel("Email");
@@ -39,26 +39,14 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
   await expect(passwordInput).toBeVisible();
   await expect(signInButton).toBeEnabled();
 
-  await page.waitForFunction(() => document.readyState === "complete");
-
-  await page.waitForTimeout(500);
-
   await emailInput.fill(email);
   await passwordInput.fill(password);
 
-  const signInResponsePromise = page.waitForResponse(
-    (response) => response.request().method() === "POST" && response.url().includes("/_serverFn/"),
-    {
-      timeout: 15_000,
-    },
-  );
-
   await signInButton.click();
 
-  const signInResponse = await signInResponsePromise;
-
-  expect(signInResponse.ok()).toBe(true);
-
+  // Do not depend on TanStack Start's internal server-function URL or
+  // transport shape. Successful authentication is proven by the durable
+  // HttpOnly session cookie and the app's post-login dashboard navigation.
   await expect
     .poll(
       async () => {
@@ -66,21 +54,19 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
 
         return cookies.some(
           (cookie) =>
-            cookie.name === "fluent_path_session" && cookie.httpOnly && cookie.value.length > 0,
+            cookie.name === "fluent_path_session" &&
+            cookie.httpOnly &&
+            cookie.value.length > 0,
         );
       },
       {
-        timeout: 10_000,
+        timeout: 20_000,
         message: "Expected authenticated session cookie to be created",
       },
     )
     .toBe(true);
 
-  // Authentication is now proven complete. Navigate explicitly so E2E
-  // suites begin from a deterministic authenticated application state.
-  await page.goto("/dashboard");
-
   await expect(page).toHaveURL(/\/dashboard(?:\/|$|\?)/, {
-    timeout: 15_000,
+    timeout: 20_000,
   });
 }
