@@ -17,34 +17,44 @@ TanStack Start/Router, React 19, TypeScript, Vite 8, Tailwind CSS 4, Radix UI, N
 8. Vocabulary Builder
 
 ## Current phase
-Phase 8 — Vocabulary Builder is complete and verified on implementation branch `phase-08-vocabulary-builder`. PR #1 remains open and unmerged pending explicit merge authorization.
+Phase 9 — Listening Lab is implemented on branch `phase-09-listening-lab` and awaiting local verification plus merge authorization.
 
 Implemented outcome:
-- CEFR A1-C2 vocabulary catalog with server-side topic/level/search filtering and 30-word pagination across the full 20,000-word catalog.
-- Native-language translations using the learner language setting.
-- Personal learning list and due review queue.
-- Persistent spaced-repetition state and immutable review history.
-- Again/Hard/Good/Easy review workflow.
-- Progress summary (due, mastered, total reviews).
-- Server-side authentication and module-entitlement enforcement.
-- Marketplace/My Learning navigation and module release integration.
-- Database migration and starter multilingual catalog.
-- Reproducible 20,000-word CEFR catalog preparation/import pipeline (A1 1,500; A2 2,500; B1 3,500; B2 4,000; C1 4,500; C2 4,000).
-- Vocabulary data scripts load `.env.local` consistently with local application configuration.
+- CEFR A1-C2 listening lesson library with topic/level/search filters and pagination.
+- Listening player with adjustable 0.75x, 1x, 1.25x and 1.5x playback.
+- Recorded-audio URL support plus a no-cost browser English speech fallback for development content.
+- Comprehension questions with server-side scoring and explanations.
+- Dictation mode with normalized word-level edit-distance accuracy scoring.
+- Shadowing mode with in-browser microphone recording and replay; raw microphone audio remains local to the browser.
+- Persistent listening attempts and per-lesson progress.
+- Progress summary for completed lessons, listening minutes, dictation average and shadowing sessions.
+- Server-side authentication and Listening Lab entitlement enforcement.
+- Marketplace and My Learning navigation integration.
+- Listening Lab release status enabled in both the module registry and database migration.
+- Starter listening catalog spanning A1-C2 and multiple topics.
+- Playwright access coverage.
 
-## Verification / setup
-- Migration `0016_vocabulary_builder.sql` applied in the development environment.
-- Vocabulary E2E suite: 2 tests passed.
-- TypeScript check: `npx tsc --noEmit` passed.
-- Production Vite/TanStack/Nitro build passed on 2026-09-19; only non-blocking chunk-size and Vite tsconfig-paths warnings were reported.
-- Neon vocabulary import normalized the active catalog to exactly 20,000 entries and preserved learner/review history by deactivating 13 legacy rows outside the canonical catalog.
-- Exact CEFR distribution verified: A1 1,500; A2 2,500; B1 3,500; B2 4,000; C1 4,500; C2 4,000.
-- Generated catalog JSON and download cache are intentionally ignored; the catalog is reproducible from the preparation script.
-- Catalog CEFR/POS/frequency data is source-backed. Full learner-quality definitions, examples, topics, synonyms, and non-English translations are not source-verified for all 20,000 entries and remain content-enrichment work.
-- Phase 7 left non-blocking dev/test ECONNRESET logging noise and a Vite tsconfig-paths deprecation warning.
+## Phase 9 data model
+- `listening_lessons`
+- `listening_questions`
+- `listening_attempts`
+- `user_listening_progress`
 
-## Latest delivery revision
-Phase 8 pagination/search fix added after the original finalization revision; verification of this follow-up fix is pending in the local working tree.
+## Verification required before merge
+Run from the phase branch:
+- `npm ci`
+- `npm run db:migrate`
+- `npx tsc --noEmit`
+- `npm run build`
+- `npx playwright test tests/e2e/listening.spec.ts`
+
+The database migration and runtime checks have not been executed by the GitHub connector and must not be treated as passed until run in a development environment.
+
+## Content/audio note
+The architecture supports production recorded/native audio through `audio_url`. The seeded Phase 9 development catalog intentionally uses the browser speech engine when no audio URL is present, avoiding a paid audio dependency. Production-quality human/native recordings remain a content-population step and do not require an application architecture change.
+
+## Previous phase
+Phase 8 — Vocabulary Builder was merged to `main` in commit `97f7ac6b803ac984eebb7ed0429eeada286ec343`.
 
 ## Next phase
-Phase 9 — Listening Lab.
+Phase 10 — Reading Trainer.
