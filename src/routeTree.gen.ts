@@ -16,6 +16,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AppAssessmentRouteImport } from './routes/_app.assessment'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppListeningRouteImport } from './routes/_app.listening'
 import { Route as AppModulesRouteImport } from './routes/_app.modules'
 import { Route as AppMyLearningRouteImport } from './routes/_app.my-learning'
 import { Route as AppProfileRouteImport } from './routes/_app.profile'
@@ -58,6 +59,11 @@ const AppAssessmentRoute = AppAssessmentRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppListeningRoute = AppListeningRouteImport.update({
+  id: '/listening',
+  path: '/listening',
   getParentRoute: () => AppRoute,
 } as any)
 const AppModulesRoute = AppModulesRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/assessment': typeof AppAssessmentRoute
   '/dashboard': typeof AppDashboardRoute
+  '/listening': typeof AppListeningRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
   '/profile': typeof AppProfileRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/assessment': typeof AppAssessmentRoute
   '/dashboard': typeof AppDashboardRoute
+  '/listening': typeof AppListeningRoute
   '/modules': typeof AppModulesRoute
   '/my-learning': typeof AppMyLearningRoute
   '/profile': typeof AppProfileRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/_app/assessment': typeof AppAssessmentRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/listening': typeof AppListeningRoute
   '/_app/modules': typeof AppModulesRoute
   '/_app/my-learning': typeof AppMyLearningRoute
   '/_app/profile': typeof AppProfileRoute
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/assessment'
     | '/dashboard'
+    | '/listening'
     | '/modules'
     | '/my-learning'
     | '/profile'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/assessment'
     | '/dashboard'
+    | '/listening'
     | '/modules'
     | '/my-learning'
     | '/profile'
@@ -203,6 +214,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/_app/assessment'
     | '/_app/dashboard'
+    | '/_app/listening'
     | '/_app/modules'
     | '/_app/my-learning'
     | '/_app/profile'
@@ -271,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/listening': {
+      id: '/_app/listening'
+      path: '/listening'
+      fullPath: '/listening'
+      preLoaderRoute: typeof AppListeningRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/modules': {
@@ -342,6 +361,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppAssessmentRoute: typeof AppAssessmentRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppListeningRoute: typeof AppListeningRoute
   AppModulesRoute: typeof AppModulesRoute
   AppMyLearningRoute: typeof AppMyLearningRoute
   AppProfileRoute: typeof AppProfileRoute
@@ -356,6 +376,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAssessmentRoute: AppAssessmentRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppListeningRoute: AppListeningRoute,
   AppModulesRoute: AppModulesRoute,
   AppMyLearningRoute: AppMyLearningRoute,
   AppProfileRoute: AppProfileRoute,
