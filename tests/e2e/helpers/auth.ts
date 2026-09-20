@@ -46,9 +46,6 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
   await expect(passwordInput).toBeVisible();
   await expect(signInButton).toBeEnabled();
 
-  // Give client hydration a deterministic moment before submitting the form.
-  await page.waitForTimeout(500);
-
   await emailInput.fill(email);
   await passwordInput.fill(password);
   await signInButton.click();
