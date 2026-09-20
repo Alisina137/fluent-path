@@ -8,30 +8,42 @@ test.describe("Listening Lab", () => {
     await expect(page.getByRole("heading", { name: /Audio library/i })).toHaveCount(0);
   });
 
-  test("renders the authenticated Listening Lab access state", async ({ page }) => {
+  test("renders the authenticated Listening Lab through the real module flow", async ({ page }) => {
     await installE2EAuthSession(page);
 
-    // Keep the authenticated React providers alive. A second full document
-    // navigation would recreate AuthProvider with session=null and start a new
-    // current-account request; in Vite dev that request can be aborted with
-    // ECONNRESET while the previous page is still settling.
-    await page.evaluate(() => {
-      window.history.pushState({}, "", "/listening");
-      window.dispatchEvent(new PopStateEvent("popstate"));
+    await page.getByRole("link", { name: "Modules" }).click();
+    await expect(page.getByRole("heading", { name: "Module marketplace" })).toBeVisible({
+      timeout: 15_000,
     });
+
+    const listeningHeading = page.getByRole("heading", {
+      name: "Listening Lab",
+      level: 3,
+    });
+    await expect(listeningHeading).toBeVisible();
+
+    const listeningCard = listeningHeading.locator("xpath=ancestor::div[contains(@class,'rounded-xl')][1]");
+    const subscribe = listeningCard.getByRole("button", { name: "Subscribe" });
+    const openModule = listeningCard.getByRole("button", { name: "Open module" });
+
+    if (await subscribe.isVisible().catch(() => false)) {
+      await subscribe.click();
+      await expect(openModule).toBeVisible({
+        timeout: 15_000,
+      });
+    }
+
+    await openModule.click();
 
     await expect(page).toHaveURL(/\/listening(?:\/|$|\?)/, {
-      timeout: 10_000,
+      timeout: 15_000,
     });
 
-    const activeHeading = page.getByRole("heading", {
-      name: /Train your ear with real listening practice/i,
-    });
-    const subscriptionHeading = page.getByRole("heading", {
-      name: /Listening Lab subscription required/i,
-    });
-
-    await expect(activeHeading.or(subscriptionHeading)).toBeVisible({
+    await expect(
+      page.getByRole("heading", {
+        name: /Train your ear with real listening practice/i,
+      }),
+    ).toBeVisible({
       timeout: 20_000,
     });
   });
