@@ -1,0 +1,39 @@
+import { expect, test } from "@playwright/test";
+import { installE2EAuthSession } from "./helpers/auth";
+
+test.describe("Vocabulary Builder", () => {
+  test("protects vocabulary data from unauthenticated users", async ({ page }) => {
+    await page.goto("/vocabulary");
+
+    await expect(
+      page.getByRole("heading", {
+        name: "Sign in to build your vocabulary",
+      }),
+    ).toBeVisible();
+
+    await expect(
+      page.getByRole("heading", {
+        name: "Word library",
+      }),
+    ).toHaveCount(0);
+  });
+
+  test("loads the authenticated vocabulary experience", async ({ page }) => {
+    await installE2EAuthSession(page);
+    await page.goto("/vocabulary");
+
+    await expect(
+      page.getByRole("heading", {
+        name: /Turn new words into words you can use/i,
+      }),
+    ).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await expect(page.getByRole("navigation", { name: "Vocabulary pagination" })).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(/Showing 1–30 of/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Next" })).toBeEnabled();
+  });
+});

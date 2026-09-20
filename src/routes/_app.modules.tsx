@@ -117,6 +117,12 @@ function ModulesPage() {
       return;
     }
 
+    if (id === "vocabulary") {
+      setPreviewId(null);
+      void navigate({ to: "/vocabulary" });
+      return;
+    }
+
     setPreviewId(null);
     void navigate({ to: "/my-learning" });
   }

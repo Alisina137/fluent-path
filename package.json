@@ -16,7 +16,11 @@
     "db:studio": "drizzle-kit studio",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "vocabulary:import": "node scripts/import-vocabulary-catalog.mjs",
+    "vocabulary:count": "node scripts/count-vocabulary.mjs",
+    "vocabulary:prepare": "node scripts/prepare-vocabulary-catalog.mjs",
+    "vocabulary:setup": "npm run vocabulary:prepare && npm run vocabulary:import -- data/vocabulary/catalog-20000.json && npm run vocabulary:count"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

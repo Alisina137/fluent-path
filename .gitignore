@@ -40,3 +40,7 @@ playwright-report/
 test-results/
 playwright-report/
 test-results/
+
+# Generated vocabulary catalog/cache
+.cache/
+data/vocabulary/catalog-*.json
