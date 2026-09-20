@@ -120,6 +120,13 @@
       "when": 1789822148678,
       "tag": "0016_vocabulary_builder",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790006460000,
+      "tag": "0017_listening_lab",
+      "breakpoints": true
     }
   ]
 }
