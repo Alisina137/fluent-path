@@ -30,7 +30,7 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn } = useAuth();
+  const { signIn, hydrated } = useAuth();
   const navigate = useNavigate();
 
   const [email, setEmail] = useState("");
@@ -89,7 +89,7 @@ function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                disabled={loading}
+                disabled={loading || !hydrated}
               />
             </div>
 
@@ -103,7 +103,7 @@ function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
+                disabled={loading || !hydrated}
               />
             </div>
 
@@ -113,8 +113,8 @@ function LoginPage() {
               </p>
             ) : null}
 
-            <Button type="submit" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
+            <Button type="submit" disabled={loading || !hydrated}>
+              {!hydrated ? "Loading…" : loading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
 

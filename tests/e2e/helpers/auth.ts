@@ -16,71 +16,76 @@ function getRequiredE2ECredentials() {
     );
   }
 
-  return {
-    email,
-    password,
-  };
+  return { email, password };
+}
+
+async function hasAuthCookie(page: Page): Promise<boolean> {
+  const cookies = await page.context().cookies();
+
+  return cookies.some(
+    (cookie) =>
+      cookie.name === "fluent_path_session" &&
+      cookie.httpOnly &&
+      cookie.value.length > 0,
+  );
 }
 
 export async function installE2EAuthSession(page: Page): Promise<void> {
   const { email, password } = getRequiredE2ECredentials();
 
   await page.goto("/login", {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
   });
 
   const emailInput = page.getByLabel("Email");
   const passwordInput = page.getByLabel("Password");
-  const signInButton = page.getByRole("button", {
-    name: "Sign in",
-  });
+  const signInButton = page.getByRole("button", { name: "Sign in" });
+  const loginError = page.getByRole("alert");
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
   await expect(signInButton).toBeEnabled();
 
-  await page.waitForFunction(() => document.readyState === "complete");
-
-  await page.waitForTimeout(500);
-
   await emailInput.fill(email);
   await passwordInput.fill(password);
-
-  const signInResponsePromise = page.waitForResponse(
-    (response) => response.request().method() === "POST" && response.url().includes("/_serverFn/"),
-    {
-      timeout: 15_000,
-    },
-  );
-
   await signInButton.click();
 
-  const signInResponse = await signInResponsePromise;
+  const deadline = Date.now() + 20_000;
 
-  expect(signInResponse.ok()).toBe(true);
+  while (Date.now() < deadline) {
+    if (await hasAuthCookie(page)) {
+      await expect(page).toHaveURL(/\/dashboard(?:\/|$|\?)/, {
+        timeout: 20_000,
+      });
+      return;
+    }
 
-  await expect
-    .poll(
-      async () => {
-        const cookies = await page.context().cookies();
+    if (await loginError.isVisible().catch(() => false)) {
+      const message = (await loginError.textContent())?.trim() || "Unknown login error.";
 
-        return cookies.some(
-          (cookie) =>
-            cookie.name === "fluent_path_session" && cookie.httpOnly && cookie.value.length > 0,
-        );
-      },
-      {
-        timeout: 10_000,
-        message: "Expected authenticated session cookie to be created",
-      },
-    )
-    .toBe(true);
+      throw new Error(
+        `E2E sign-in was rejected by the application. UI message: "${message}". Verify E2E_USER_EMAIL and E2E_USER_PASSWORD in .env.local and confirm that account can sign in manually.`,
+      );
+    }
 
-  // Authentication is now proven complete. Navigate explicitly so E2E
-  // suites begin from a deterministic authenticated application state.
-  await page.goto("/dashboard");
+    await page.waitForTimeout(250);
+  }
 
-  await expect(page).toHaveURL(/\/dashboard(?:\/|$|\?)/, {
-    timeout: 15_000,
-  });
+  const url = page.url();
+  const buttonText = (await signInButton.textContent().catch(() => null))?.trim() ?? "unavailable";
+  const visibleError = await loginError.isVisible().catch(() => false);
+  const errorText = visibleError
+    ? (await loginError.textContent())?.trim() || "Unknown login error."
+    : "none";
+
+  throw new Error(
+    [
+      "E2E sign-in did not establish an authenticated session within 20 seconds.",
+      `Current URL: ${url}`,
+      `Session cookie present: ${await hasAuthCookie(page)}`,
+      `Sign-in button text: ${buttonText}`,
+      `Visible login error: ${errorText}`,
+      "This failure occurs before Listening Lab starts.",
+    ].join("\n"),
+  );
 }

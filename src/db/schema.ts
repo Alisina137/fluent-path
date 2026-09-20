@@ -8,3 +8,5 @@ export * from "./schema/speaking";
 export * from "./schema/writing";
 export * from "./schema/auth";
 export * from "./schema/vocabulary";
+
+export * from "./schema/listening";

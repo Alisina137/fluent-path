@@ -96,6 +96,11 @@ function MyLearning() {
                   return;
                 }
 
+                if (id === "listening") {
+                  void navigate({ to: "/listening" });
+                  return;
+                }
+
                 toast.info(`${module.name} lesson content is not available yet.`);
               }}
             />
