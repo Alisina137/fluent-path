@@ -16,10 +16,7 @@ function getRequiredE2ECredentials() {
     );
   }
 
-  return {
-    email,
-    password,
-  };
+  return { email, password };
 }
 
 export async function installE2EAuthSession(page: Page): Promise<void> {
@@ -31,9 +28,8 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
 
   const emailInput = page.getByLabel("Email");
   const passwordInput = page.getByLabel("Password");
-  const signInButton = page.getByRole("button", {
-    name: "Sign in",
-  });
+  const signInButton = page.getByRole("button", { name: "Sign in" });
+  const loginError = page.getByRole("alert");
 
   await expect(emailInput).toBeVisible();
   await expect(passwordInput).toBeVisible();
@@ -41,30 +37,39 @@ export async function installE2EAuthSession(page: Page): Promise<void> {
 
   await emailInput.fill(email);
   await passwordInput.fill(password);
-
   await signInButton.click();
 
-  // Do not depend on TanStack Start's internal server-function URL or
-  // transport shape. Successful authentication is proven by the durable
-  // HttpOnly session cookie and the app's post-login dashboard navigation.
-  await expect
-    .poll(
-      async () => {
-        const cookies = await page.context().cookies();
+  const result = await Promise.race([
+    expect
+      .poll(
+        async () => {
+          const cookies = await page.context().cookies();
+          return cookies.some(
+            (cookie) =>
+              cookie.name === "fluent_path_session" &&
+              cookie.httpOnly &&
+              cookie.value.length > 0,
+          );
+        },
+        {
+          timeout: 20_000,
+          intervals: [200, 500, 1_000],
+        },
+      )
+      .toBe(true)
+      .then(() => "authenticated" as const),
+    loginError
+      .waitFor({ state: "visible", timeout: 20_000 })
+      .then(() => "login-error" as const)
+      .catch(() => new Promise<never>(() => {})),
+  ]);
 
-        return cookies.some(
-          (cookie) =>
-            cookie.name === "fluent_path_session" &&
-            cookie.httpOnly &&
-            cookie.value.length > 0,
-        );
-      },
-      {
-        timeout: 20_000,
-        message: "Expected authenticated session cookie to be created",
-      },
-    )
-    .toBe(true);
+  if (result === "login-error") {
+    const message = (await loginError.textContent())?.trim() || "Unknown login error.";
+    throw new Error(
+      `E2E sign-in failed before the test could start. UI message: "${message}". Verify E2E_USER_EMAIL/E2E_USER_PASSWORD in .env.local and that the dedicated E2E account exists.`,
+    );
+  }
 
   await expect(page).toHaveURL(/\/dashboard(?:\/|$|\?)/, {
     timeout: 20_000,
