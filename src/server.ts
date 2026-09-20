@@ -68,7 +68,10 @@ function isH3SwallowedErrorBody(body: string): boolean {
 // h3 can convert an in-handler throw into a normal 500 JSON response.
 // Normalize genuine catastrophic SSR failures into the application's
 // HTML error page, while ignoring expected client-disconnect noise.
-async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
+async function normalizeCatastrophicSsrResponse(
+  response: Response,
+  request: Request,
+): Promise<Response> {
   if (response.status < 500) {
     return response;
   }
@@ -85,10 +88,25 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
     return response;
   }
 
+  // A browser/navigation/client disconnect can be converted by h3 into a
+  // generic 500 JSON response before it reaches this wrapper. The Request
+  // signal is the most reliable way to correlate that response with the
+  // client abort; do not promote expected disconnects into catastrophic SSR
+  // failures.
+  if (request.signal.aborted) {
+    consumeLastCapturedError();
+
+    return new Response(null, {
+      status: 499,
+    });
+  }
+
   const capturedError = consumeLastCapturedError();
 
   if (capturedError && isAbortLikeError(capturedError)) {
-    return response;
+    return new Response(null, {
+      status: 499,
+    });
   }
 
   console.error(capturedError ?? new Error("A catastrophic SSR error was captured."));
@@ -108,7 +126,7 @@ export default {
 
       const response = await handler.fetch(request, env, ctx);
 
-      return await normalizeCatastrophicSsrResponse(response);
+      return await normalizeCatastrophicSsrResponse(response, request);
     } catch (error) {
       if (isAbortLikeError(error)) {
         return new Response(null, {
